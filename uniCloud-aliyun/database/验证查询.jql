@@ -1,0 +1,99 @@
+// 本文件用于验证数据库初始化数据
+// 可以全部运行，也可以选中部分代码运行。点击工具栏上的运行按钮或者按下【F5】键运行代码
+
+// ========== 基础查询 ==========
+
+// 1. 查询所有机器人
+db.collection('robots').get();
+
+// 2. 查询机器人 ROBOT-001 的详细信息
+db.collection('robots').where({
+  robotCode: 'ROBOT-001'
+}).get();
+
+// 3. 查询机器人 ROBOT-001 的最新遥测数据
+db.collection('telemetry_latest').where({
+  robotCode: 'ROBOT-001'
+}).orderBy('ts', 'desc').limit(1).get();
+
+// 4. 查询机器人 ROBOT-001 的所有故障（按时间倒序）
+db.collection('faults').where({
+  robotCode: 'ROBOT-001'
+}).orderBy('ts', 'desc').get();
+
+// 5. 查询机器人 ROBOT-001 的活跃故障
+db.collection('faults').where({
+  robotCode: 'ROBOT-001',
+  status: 'active'
+}).get();
+
+// 6. 查询机器人 ROBOT-001 的命令历史（按时间倒序）
+db.collection('commands').where({
+  robotCode: 'ROBOT-001'
+}).orderBy('ts', 'desc').get();
+
+// ========== 关联查询 ==========
+
+// 7. 关联查询：获取机器人及其最新遥测数据
+db.collection('robots').aggregate()
+  .lookup({
+    from: 'telemetry_latest',
+    localField: 'robotCode',
+    foreignField: 'robotCode',
+    as: 'telemetry'
+  })
+  .end();
+
+// 8. 关联查询：获取机器人及其故障列表
+db.collection('robots').aggregate()
+  .lookup({
+    from: 'faults',
+    localField: 'robotCode',
+    foreignField: 'robotCode',
+    as: 'faults'
+  })
+  .end();
+
+// ========== 统计查询 ==========
+
+// 9. 统计每个机器人的故障数量
+db.collection('faults').aggregate()
+  .group({
+    _id: '$robotCode',
+    count: $.sum(1)
+  })
+  .end();
+
+// 10. 统计每个机器人的活跃故障数量
+db.collection('faults').aggregate()
+  .match({
+    status: 'active'
+  })
+  .group({
+    _id: '$robotCode',
+    count: $.sum(1)
+  })
+  .end();
+
+// ========== 数据完整性验证 ==========
+
+// 11. 验证：每个机器人都有对应的遥测数据
+// 注意：此查询需要分步执行
+// 第一步：获取所有机器人编号
+// const robots = db.collection('robots').get();
+// 第二步：查询这些机器人的遥测数据
+db.collection('telemetry_latest')
+  .where({
+    robotCode: db.command.in(['ROBOT-001', 'ROBOT-002'])
+  })
+  .get();
+
+// 12. 查询所有在线机器人
+db.collection('robots').where({
+  online: true
+}).get();
+
+// 13. 查询所有离线机器人
+db.collection('robots').where({
+  online: false
+}).get();
