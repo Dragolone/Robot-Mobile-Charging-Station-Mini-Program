@@ -1,89 +1,226 @@
----
+# 🤖 Robot Charging Station Mini Program
 
-# 🤖 Robot Mobile Charging Station Mini Program
-
-A **WeChat Mini Program** for monitoring and controlling **mobile robot charging stations**, built with **uni-app (Vue 3)** and **uniCloud (Alibaba Cloud)**.
-
-The project adopts a **frontend–backend decoupled, device-agnostic architecture**, enabling seamless evolution from **UI mock development** to **cloud-based simulation** and ultimately **real robot integration**, without major frontend changes.
-
----
-
-## 🚀 Tech Stack
-
-* **Frontend**: uni-app + Vue 3 (`<script setup>`)
-* **Cloud Backend**: uniCloud (Alibaba Cloud)
-* **Database**: uniCloud Cloud Database
-* **Platform**: WeChat Mini Program
+> A robot charging and status management WeChat Mini Program built with  
+> **uni-app + Vue 3 + uniCloud (Alibaba Cloud)**.  
+>  
+> The system supports robot status monitoring, telemetry inspection, fault management,  
+> and remote control command dispatch.  
+>  
+> The project follows a **platform-first, device-later** architecture, enabling seamless
+> integration with real robots in the future (4G / HTTP / MQTT).
 
 ---
 
-## 🧩 Architecture Overview
+## 📌 Project Background
 
-This project follows a **layered architecture**:
+This project aims to build a **remote management platform for real-world robots** using a
+WeChat Mini Program.
+
+Core capabilities include:
+- Displaying robot operational status and battery information
+- Viewing telemetry and fault records
+- Issuing remote control commands to robots
+
+Since the physical robot hardware is not yet finalized, the project prioritizes:
+- Overall platform architecture design
+- Backend service APIs and database modeling
+- Strict frontend–backend decoupling through standardized interfaces
+
+This ensures that **real robot integration can be completed later without refactoring the existing system**.
+
+---
+
+## 🧱 Tech Stack
+
+### Frontend
+- uni-app
+- Vue 3
+- WeChat Mini Program
+
+### Backend / Cloud Services
+- uniCloud (Alibaba Cloud)
+- Cloud Functions (Node.js)
+- Cloud Database (JQL)
+
+---
+
+## 🗂️ Project Structure (Core)
 
 ```text
-Frontend (Mini Program)
-  ├─ UI Pages (Robot List / Detail / Control)
-  ├─ Service Layer (API abstraction)
-  ↓
-Cloud Backend (uniCloud)
-  ├─ Cloud Functions (business APIs)
-  ├─ Cloud Database (robot state & commands)
-  ↓
-Device Layer (Future)
-  ├─ Real robots via HTTP / MQTT
-```
+├── uniCloud-aliyun/
+│   ├── cloudfunctions/
+│   │   └── robot-service/        # Phase 3 core cloud function
+│   │       ├── index.js
+│   │       ├── README.md
+│   │       └── robot-service.param.json
+│   └── database/
+│       ├── robots
+│       ├── telemetry_latest
+│       ├── faults
+│       └── commands
 
-* **Frontend** focuses on UI and interaction only
-* **Backend** provides unified data and command APIs
-* **Device layer** can be replaced or extended without affecting the Mini Program
+🚀 Development Phases
+Phase 1: Project Skeleton & UI Structure
 
----
+Initialized uni-app + WeChat Mini Program project
 
-## 📁 Project Structure (Simplified)
+Built core page structure (robot list, detail, control sections)
 
-```text
-├─ pages/
-│  ├─ index/                # Entry page
-│  ├─ robots/
-│  │  ├─ index.vue          # Robot list
-│  │  └─ detail.vue         # Robot detail & control
-│
-├─ services/                # API / service abstraction
-├─ utils/                   # Utilities (formatting, helpers)
-├─ types/                   # Type definitions
-├─ styles/                  # Global styles (optional)
-│
-├─ uniCloud-aliyun/
-│  ├─ database/             # Database schemas
-│  └─ cloudfunctions/       # Backend APIs
-│
-├─ pages.json
-├─ manifest.json
-└─ README.md
-```
+Defined core functional requirements and data presentation layout
 
----
+Phase 2: Cloud Database Design & Initialization ✅
 
-## 🗄️ Data Model (Overview)
+Goal: Build a stable and extensible data model.
 
-The system uses a cloud-based data model to simulate and support real robot operations:
+Completed work:
 
-* `robots` — robot base information
-* `telemetry_latest` — latest robot status (battery, position, online)
-* `faults` — fault and error records
-* `commands` — control command records
+Designed and created four core collections:
 
-This design supports **real-time monitoring and auditable control workflows**, even before physical robots are available.
+robots: robot base information
 
----
+telemetry_latest: latest telemetry per robot
 
-## 🎯 Design Goals
+faults: fault records
 
-* Frontend–backend decoupling
-* Hardware-independent Mini Program
-* Clear separation between UI, business logic, and device access
-* Smooth transition from simulation to real robot integration
+commands: control command records
 
----
+Added necessary indexes (including unique and composite indexes)
 
+Inserted initial mock data
+
+Verified data queries and relationships using JQL
+
+Phase 2 ensures the data model is production-ready before real robot integration.
+
+Phase 3: Backend Service Layer (Cloud Functions) ✅
+
+Phase 3 is a key milestone of this project.
+
+🎯 Objectives
+
+Establish a stable business service layer between frontend and database
+
+Encapsulate all database access logic
+
+Implement parameter validation, error handling, and safety constraints
+
+Define a unified API contract for future real robot integration
+
+🧩 robot-service Cloud Function
+
+A single cloud function provides all backend APIs, dispatched via the action parameter.
+
+1️⃣ robotList
+
+Purpose: Retrieve robot list with latest telemetry and fault count.
+
+{
+  "action": "robotList"
+}
+
+
+Returns:
+
+Robot base information
+
+Latest telemetry data
+
+Fault count statistics
+
+2️⃣ robotDetail
+
+Purpose: Retrieve detailed information for a single robot.
+
+{
+  "action": "robotDetail",
+  "robotCode": "ROBOT-001"
+}
+
+
+Returns:
+
+Robot base information
+
+Latest telemetry data
+
+Most recent fault records (latest 20, ordered by time)
+
+Error handling:
+
+Explicit error response if robotCode does not exist
+
+3️⃣ commandCreate
+
+Purpose: Create and dispatch a control command.
+
+{
+  "action": "commandCreate",
+  "robotCode": "ROBOT-001",
+  "type": "move",
+  "payload": {
+    "direction": "forward"
+  }
+}
+
+
+Features:
+
+Parameter validation
+
+Robot existence verification
+
+500ms command throttling to prevent command flooding
+
+Writes to commands collection with initial status pending
+
+✅ Phase 3 Acceptance Summary
+
+All backend APIs execute successfully in uniCloud
+
+Unified response structure { code, data | message }
+
+Parameter validation and error handling verified
+
+Command throttling works as expected
+
+No uncaught runtime errors in cloud function logs
+
+Phase 3 is fully validated and ready for real robot integration.
+
+🧠 Architecture Overview
+
+The system adopts a decoupled, layered architecture:
+
+WeChat Mini Program (Frontend)
+        ↓
+Phase 3 Cloud Functions (robot-service)
+        ↓
+Cloud Database (robots / telemetry / faults / commands)
+        ↑
+Future Real Robots (4G / HTTP / MQTT)
+
+Design Advantages
+
+Frontend is completely decoupled from device implementation
+
+Robot communication protocols can be replaced or extended
+
+Backend APIs serve as a stable contract
+
+Architecture aligns with real-world industrial control systems
+
+🔮 Future Plans
+
+Phase 4: Frontend integration with cloud APIs
+
+Phase 5: Real robot connectivity (4G / HTTP / MQTT)
+
+Web-based admin management platform
+
+Authentication and permission system
+
+✍️ Notes
+
+This project completes platform and backend design before hardware availability.
+When real robots are ready, only the device data upload and command execution logic
+needs to be implemented—no system redesign required.
