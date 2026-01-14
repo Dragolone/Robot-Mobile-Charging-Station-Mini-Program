@@ -1,0 +1,6 @@
+{
+  "action": "commandCreate",
+  "robotCode": "ROBOT-001",
+  "type": "move",
+  "payload": { "direction": "forward" }
+}
