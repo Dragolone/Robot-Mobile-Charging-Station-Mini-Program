@@ -8,7 +8,6 @@
 >  
 > The project follows a **platform-first, device-later** architecture, enabling seamless
 > integration with real robots in the future (4G / HTTP / MQTT).
-=======
 
 
 ---
