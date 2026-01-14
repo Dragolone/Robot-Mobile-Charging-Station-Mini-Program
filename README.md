@@ -226,8 +226,3 @@ Future Real Robots (4G / HTTP / MQTT)
 
 This project completes platform and backend design **before hardware availability**.
 When real robots are ready, only the device data upload and command execution logic
-<<<<<<< HEAD
-needs to be implemented—no system redesign required.
-=======
-needs to be implemented — **no system redesign required**.
->>>>>>> 7dcc327 (beautify the md)
