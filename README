@@ -1,5 +1,3 @@
----
-
 # 🤖 Robot Mobile Charging Station Mini Program
 
 A **WeChat Mini Program** for monitoring and controlling **mobile robot charging stations**, built with **uni-app (Vue 3)** and **uniCloud (Alibaba Cloud)**.
@@ -84,6 +82,3 @@ This design supports **real-time monitoring and auditable control workflows**, e
 * Hardware-independent Mini Program
 * Clear separation between UI, business logic, and device access
 * Smooth transition from simulation to real robot integration
-
----
-
