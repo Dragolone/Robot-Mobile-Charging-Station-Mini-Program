@@ -169,8 +169,8 @@
 
 <script setup>
 import { ref, onMounted } from 'vue'
-import { getRobotDetail } from '@/utils/mockData.js'
 import { formatBattery } from '@/utils/format.js'
+import { callRobotService } from '@/services/robotService.js'
 
 const robotCode = ref('')
 const robotDetail = ref(null)
@@ -188,11 +188,24 @@ onMounted(() => {
 	}
 })
 
-function loadRobotDetail() {
-	robotDetail.value = getRobotDetail(robotCode.value)
+async function loadRobotDetail() {
+	const data = await callRobotService({ action: 'robotDetail', robotCode: robotCode.value })
+	if (!data) return
+
+	const robot = data.robot || {}
+	const telemetry = data.telemetry || {}
+
+	// 页面模板期望 robotDetail 直接包含电量/lastSeen/faults/location 等字段
+	robotDetail.value = {
+		...robot,
+		vehicleBattery: telemetry.vehicleBattery,
+		packBattery: telemetry.packBattery,
+		lastSeen: telemetry.lastSeen,
+		faults: data.faults || []
+	}
 }
 
-function handleDirection(direction) {
+async function handleDirection(direction) {
 	if (!robotDetail.value?.online) {
 		uni.showToast({
 			title: '设备离线不可控制',
@@ -209,18 +222,25 @@ function handleDirection(direction) {
 		right: '右转',
 		stop: '停止'
 	}
-	
+
+	const type = direction === 'stop' ? 'stop' : 'move'
+	const payload = direction === 'stop' ? {} : { direction }
+	const data = await callRobotService({
+		action: 'commandCreate',
+		robotCode: robotCode.value,
+		type,
+		payload
+	})
+	if (!data) return
+
 	uni.showToast({
-		title: `执行${directionMap[direction]}`,
+		title: `已发送${directionMap[direction]}`,
 		icon: 'success',
 		duration: 1500
 	})
-	
-	// TODO: 后续接入真实API
-	console.log('方向控制:', direction)
 }
 
-function handleSendPosition() {
+async function handleSendPosition() {
 	if (!robotDetail.value?.online) {
 		uni.showToast({
 			title: '设备离线不可控制',
@@ -238,15 +258,24 @@ function handleSendPosition() {
 		})
 		return
 	}
-	
+
+	const payload = {
+		x: Number(positionX.value),
+		y: Number(positionY.value)
+	}
+	const data = await callRobotService({
+		action: 'commandCreate',
+		robotCode: robotCode.value,
+		type: 'goto',
+		payload
+	})
+	if (!data) return
+
 	uni.showToast({
-		title: `发送点位: (${positionX.value}, ${positionY.value})`,
+		title: `已发送点位: (${payload.x}, ${payload.y})`,
 		icon: 'success',
 		duration: 1500
 	})
-	
-	// TODO: 后续接入真实API
-	console.log('发送点位:', { x: positionX.value, y: positionY.value })
 	
 	// 清空输入
 	positionX.value = ''

@@ -49,8 +49,8 @@
 
 <script setup>
 import { ref, onMounted } from 'vue'
-import { getRobotList } from '@/utils/mockData.js'
 import { formatBattery } from '@/utils/format.js'
+import { callRobotService } from '@/services/robotService.js'
 
 const robotList = ref([])
 
@@ -58,8 +58,26 @@ onMounted(() => {
 	loadRobotList()
 })
 
-function loadRobotList() {
-	robotList.value = getRobotList()
+async function loadRobotList() {
+	const data = await callRobotService({ action: 'robotList' })
+	if (!data) return
+
+	// 云函数返回：[{ robot, telemetry, faultCount }]
+	// 页面模板期望：robotCode/model/online/vehicleBattery/packBattery/lastSeen/faultCount
+	robotList.value = (data.list || []).map(item => {
+		const robot = item.robot || {}
+		const telemetry = item.telemetry || {}
+		return {
+			robotCode: robot.robotCode,
+			model: robot.model,
+			online: robot.online,
+			location: robot.location,
+			vehicleBattery: telemetry.vehicleBattery,
+			packBattery: telemetry.packBattery,
+			lastSeen: telemetry.lastSeen,
+			faultCount: item.faultCount || 0
+		}
+	})
 }
 
 function goToDetail(robotCode) {
