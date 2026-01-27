@@ -1,0 +1,13 @@
+{
+  "passwordStrength": "medium",
+  "passwordSecret": [
+    {
+      "type": "hmac-sha256",
+      "version": 1
+    }
+  ],
+  "tokenSecret": "REPLACE_WITH_A_LONG_RANDOM_STRING_32PLUS",
+  "requestAuthSecret": "REPLACE_WITH_ANOTHER_LONG_RANDOM_STRING_32PLUS",
+  "tokenExpiresIn": 7200,
+  "tokenExpiresThreshold": 3600
+}
