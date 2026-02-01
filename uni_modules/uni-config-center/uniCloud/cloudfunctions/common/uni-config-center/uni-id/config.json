@@ -1,0 +1,32 @@
+{
+  "passwordSecret": [
+    {
+      "type": "hmac-sha256",
+      "version": 1
+    }
+  ],
+  "passwordStrength": "medium",
+
+  "tokenSecret": "r9A3F2n8DkQp7VxWJ4M6Zy0HcLBeUsTt",
+  "requestAuthSecret": "U2eXK9b0Z3mF5C7QnY4LJ8WPHsDArVtM",
+
+  "tokenExpiresIn": 7200,
+  "tokenExpiresThreshold": 3600,
+  "maxTokenLength": 10,
+  "passwordErrorLimit": 6,
+  "passwordErrorRetryTime": 3600,
+  "userRegisterDefaultRole": [],
+
+  "app": {
+    "tokenExpiresIn": 2592000,
+    "tokenExpiresThreshold": 864000
+  },
+  "web": {
+    "tokenExpiresIn": 7200,
+    "tokenExpiresThreshold": 3600
+  },
+  "mp-weixin": {
+    "tokenExpiresIn": 259200,
+    "tokenExpiresThreshold": 86400
+  }
+}

@@ -19,7 +19,8 @@ export async function callRobotService(data) {
 			data
 		})
 
-		// uniCloud callFunction 返回结构：{ result: { code, data, message } }
+		// uniCloud callFunction 返回结构：{ result: { code, data, message } } 
+		//e.g：返回结果： {"code":0,"data":Object} 
 		const result = res && res.result ? res.result : null
 		if (!result) {
 			toast('服务返回异常')
