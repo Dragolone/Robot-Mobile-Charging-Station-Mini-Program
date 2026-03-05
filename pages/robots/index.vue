@@ -48,13 +48,16 @@
 </template>
 
 <script setup>
-import { ref, onMounted } from 'vue'
+import { ref } from 'vue'
+import { onShow } from '@dcloudio/uni-app'
 import { formatBattery } from '@/utils/format.js'
 import { callRobotService } from '@/services/robotService.js'
+import { ensureLogin } from '@/utils/auth.js'
 
 const robotList = ref([])
 
-onMounted(() => {
+onShow(() => {
+	if (!ensureLogin()) return
 	loadRobotList()
 })
 

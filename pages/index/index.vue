@@ -7,17 +7,16 @@
 	</view>
 </template>
 
-<script setup>
-import { onMounted } from 'vue'
-
-onMounted(() => {
-	// 自动跳转到机器人列表页
-	setTimeout(() => {
-		uni.redirectTo({
-			url: '/pages/robots/index'
-		})
-	}, 500)
-})
+<script>
+export default {
+  onLoad() {
+    setTimeout(() => {
+      uni.redirectTo({
+        url: '/pages/test/test'
+      })
+    }, 500)
+  }
+}
 </script>
 
 <style>
