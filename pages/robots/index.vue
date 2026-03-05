@@ -52,12 +52,12 @@ import { ref } from 'vue'
 import { onShow } from '@dcloudio/uni-app'
 import { formatBattery } from '@/utils/format.js'
 import { callRobotService } from '@/services/robotService.js'
-import { ensureLogin } from '@/utils/auth.js'
+import { ensureLoginForCurrentPage } from '@/utils/auth.js'
 
 const robotList = ref([])
 
 onShow(() => {
-	if (!ensureLogin()) return
+	if (!ensureLoginForCurrentPage()) return
 	loadRobotList()
 })
 

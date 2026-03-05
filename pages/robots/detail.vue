@@ -172,7 +172,7 @@ import { ref } from 'vue'
 import { onShow } from '@dcloudio/uni-app'
 import { formatBattery } from '@/utils/format.js'
 import { callRobotService } from '@/services/robotService.js'
-import { ensureLogin } from '@/utils/auth.js'
+import { ensureLoginForCurrentPage } from '@/utils/auth.js'
 
 const robotCode = ref('')
 const robotDetail = ref(null)
@@ -180,7 +180,7 @@ const positionX = ref('')
 const positionY = ref('')
 
 onShow(() => {
-	if (!ensureLogin()) return
+	if (!ensureLoginForCurrentPage()) return
 	const pages = getCurrentPages()
 	const currentPage = pages[pages.length - 1]
 	const options = currentPage.options || {}

@@ -44,8 +44,7 @@
 <script setup>
 import { ref } from 'vue'
 import { onLoad } from '@dcloudio/uni-app'
-import { backToRedirect, ensureLogin, saveRedirectUrl, setLoginToken } from '@/utils/auth.js'
-import { mutations } from '@/uni_modules/uni-id-pages/common/store.js'
+import { backToRedirect, isLoggedIn, REDIRECT_KEY, setToken } from '@/utils/auth.js'
 
 const uniIdCo = uniCloud.importObject('uni-id-co', {
 	customUI: true,
@@ -55,17 +54,17 @@ const uniIdCo = uniCloud.importObject('uni-id-co', {
 const username = ref('')
 const password = ref('')
 const loading = ref(false)
-const redirectUrl = ref('')
 
 onLoad((query = {}) => {
-	// 已经登录则直接回跳（避免从 App 启动/拦截误入登录页）
-	if (ensureLogin()) return
-
-	const q = String(query.redirectUrl || '').trim()
-	if (q) {
-		redirectUrl.value = decodeURIComponent(q)
-		saveRedirectUrl(redirectUrl.value)
+	// 已经登录则直接回跳（避免误入登录页）
+	if (isLoggedIn()) {
+		backToRedirect()
+		return
 	}
+
+	// 兼容：如果外部仍通过 query 传 redirectUrl，则写入统一的 REDIRECT_KEY
+	const q = String(query.redirectUrl || '').trim()
+	if (q) uni.setStorageSync(REDIRECT_KEY, decodeURIComponent(q))
 })
 
 function toRegister() {
@@ -102,19 +101,19 @@ async function submit() {
 	loading.value = true
 	try {
 		const res = await uniIdCo.login(data)
-		// 安全原则：不信任/不使用前端传 uid；客户端只持有 token，由后端解密得到 uid
-		setLoginToken(res?.newToken)
 
-		// 触发 uni-id-pages 的用户信息更新（不依赖 uid 参数）
-		mutations.loginSuccess({
-			showToast: true,
-			toastText: '登录成功',
-			autoBack: false,
-			passwordConfirmed: res?.passwordConfirmed
-		})
+		// uni-id-co 标准返回：{ newToken: { token, tokenExpired }, uid, ... }
+		const token = res?.token || res?.newToken?.token
+		const tokenExpired = res?.tokenExpired || res?.newToken?.tokenExpired
+		if (!setToken(token, tokenExpired)) {
+			uni.showToast({ title: '登录失败：缺少 token', icon: 'none' })
+			return
+		}
 
-		// 按 redirectUrl 回跳
-		backToRedirect(redirectUrl.value || '/pages/robots/index')
+		uni.showToast({ title: '登录成功', icon: 'none' })
+		backToRedirect()
+	} catch (e) {
+		uni.showToast({ title: e?.errMsg || e?.message || '登录失败', icon: 'none' })
 	} finally {
 		loading.value = false
 	}

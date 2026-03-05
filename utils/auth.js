@@ -1,51 +1,66 @@
-const TOKEN_KEY = 'uni_id_token'
-const TOKEN_EXPIRED_KEY = 'uni_id_token_expired'
-const REDIRECT_URL_KEY = '__login_redirect_url__'
+import pagesJson from '@/pages.json'
 
-const PROTECTED_ROUTES = new Set([
-	'pages/robots/index',
-	'pages/robots/detail'
-])
+export const TOKEN_KEY = 'uni_id_token'
+export const EXPIRED_KEY = 'uni_id_token_expired'
+export const REDIRECT_KEY = '_login_redirect_url_'
+
+// 最小可运行：先保护主业务页（可按需扩展）
+const PROTECTED_ROUTES = new Set(['pages/robots/index', 'pages/robots/detail'])
 
 let isRedirecting = false
 
-export function isLoggedIn() {
-	const token = String(uni.getStorageSync(TOKEN_KEY) || '').trim()
-	if (!token) return false
-	const expired = Number(uni.getStorageSync(TOKEN_EXPIRED_KEY) || 0)
-	if (expired && expired < Date.now()) return false
-	return true
+function normalizeUrl(url) {
+	const u = String(url || '').trim()
+	if (!u) return ''
+	return u.startsWith('/') ? u : `/${u}`
 }
 
-export function setLoginToken(newToken) {
-	const token = String(newToken?.token || '').trim()
-	if (!token) return false
-	uni.setStorageSync(TOKEN_KEY, token)
-	uni.setStorageSync(TOKEN_EXPIRED_KEY, Number(newToken?.tokenExpired || 0))
-	return true
+function stripQueryAndHash(url) {
+	const u = String(url || '')
+	const i = Math.min(
+		...['?', '#'].map((ch) => {
+			const idx = u.indexOf(ch)
+			return idx === -1 ? u.length : idx
+		})
+	)
+	return u.slice(0, i)
 }
 
-export function saveRedirectUrl(url) {
-	const v = String(url || '').trim()
-	if (!v) return
-	uni.setStorageSync(REDIRECT_URL_KEY, v)
+function toRoutePath(url) {
+	const p = stripQueryAndHash(normalizeUrl(url))
+	return p.startsWith('/') ? p.slice(1) : p
 }
 
-export function consumeRedirectUrl() {
-	const v = String(uni.getStorageSync(REDIRECT_URL_KEY) || '').trim()
-	if (v) uni.removeStorageSync(REDIRECT_URL_KEY)
-	return v
+function getLoginPageUrl() {
+	const configured = pagesJson?.uniIdRouter?.loginPage
+	const fallback = 'pages/login/index'
+	return normalizeUrl(configured || fallback)
 }
 
-export function getCurrentFullPath() {
+function isLoginPageRoute(route) {
+	const r = String(route || '').trim()
+	if (!r) return false
+	return normalizeUrl(r) === getLoginPageUrl()
+}
+
+function isProtectedRoute(route) {
+	return PROTECTED_ROUTES.has(String(route || '').trim())
+}
+
+function isTabBarUrl(url) {
+	const routePath = toRoutePath(url)
+	const list = pagesJson?.tabBar?.list || []
+	return list.some((item) => String(item?.pagePath || '').trim() === routePath)
+}
+
+function getCurrentFullPath() {
 	const pages = getCurrentPages()
 	const page = pages && pages.length ? pages[pages.length - 1] : null
 	if (!page) return ''
 
-	// 新版运行时可用
 	const fullPath = page?.$page?.fullPath
 	if (typeof fullPath === 'string' && fullPath) {
-		return fullPath.startsWith('/') ? fullPath : `/${fullPath}`
+		return normalizeUrl(fullPath)
 	}
 
 	const route = String(page.route || '').trim()
@@ -59,69 +74,94 @@ export function getCurrentFullPath() {
 	return route ? `/${route}${query ? `?${query}` : ''}` : ''
 }
 
-export function isLoginRoute(route) {
-	const r = String(route || '').trim()
-	if (!r) return false
-	return r === 'pages/login/index' || r.startsWith('uni_modules/uni-id-pages/pages/login/')
+export function getToken() {
+	return String(uni.getStorageSync(TOKEN_KEY) || '').trim()
 }
 
-export function ensureLogin(options = {}) {
-	const redirectUrl = String(options.redirectUrl || '').trim()
-	if (isLoggedIn()) return true
-
-	const pages = getCurrentPages()
-	const page = pages && pages.length ? pages[pages.length - 1] : null
-	const route = String(page?.route || '').trim()
-	if (isLoginRoute(route)) return false
-
-	const finalRedirectUrl = redirectUrl || getCurrentFullPath() || '/pages/robots/index'
-	toLogin(finalRedirectUrl)
-	return false
+export function setToken(token, expired) {
+	const t = String(token || '').trim()
+	if (!t) return false
+	uni.setStorageSync(TOKEN_KEY, t)
+	uni.setStorageSync(EXPIRED_KEY, Number(expired || 0))
+	return true
 }
 
+export function clearToken() {
+	uni.removeStorageSync(TOKEN_KEY)
+	uni.setStorageSync(EXPIRED_KEY, 0)
+}
+
+export function isLoggedIn() {
+	const token = getToken()
+	if (!token) return false
+	const expired = Number(uni.getStorageSync(EXPIRED_KEY) || 0)
+	if (expired && expired < Date.now()) return false
+	return true
+}
+
+/**
+ * 全局/页面守卫：未登录则保存当前页面完整路径(含 query)并跳转登录页
+ * @returns {boolean} true=已登录或无需保护；false=已跳转登录页
+ */
 export function ensureLoginForCurrentPage() {
 	const pages = getCurrentPages()
 	const page = pages && pages.length ? pages[pages.length - 1] : null
 	const route = String(page?.route || '').trim()
-	if (!route) return
-	if (isLoginRoute(route)) return
-	if (!PROTECTED_ROUTES.has(route)) return
-	ensureLogin()
-}
+	if (!route) return true
 
-export function toLogin(redirectUrl) {
-	if (isRedirecting) return
+	if (isLoginPageRoute(route)) return false
+	if (!isProtectedRoute(route)) return true
+	if (isLoggedIn()) return true
+	if (isRedirecting) return false
+
 	isRedirecting = true
 	setTimeout(() => {
 		isRedirecting = false
 	}, 1200)
 
-	const url = String(redirectUrl || '').trim() || getCurrentFullPath() || '/pages/robots/index'
-	saveRedirectUrl(url)
+	const fullPath = getCurrentFullPath() || '/pages/robots/index'
+	uni.setStorageSync(REDIRECT_KEY, fullPath)
 
+	const loginUrl = getLoginPageUrl()
 	uni.navigateTo({
-		url: `/pages/login/index?redirectUrl=${encodeURIComponent(url)}`,
+		url: loginUrl,
 		fail: () => {
-			// 在部分场景（如栈满/重复跳转）navigateTo 可能失败，兜底用 redirectTo
-			uni.redirectTo({
-				url: `/pages/login/index?redirectUrl=${encodeURIComponent(url)}`
-			})
+			uni.redirectTo({ url: loginUrl })
 		}
 	})
+	return false
 }
 
-export function backToRedirect(fallbackUrl = '/pages/robots/index') {
-	const redirectUrl = consumeRedirectUrl() || String(fallbackUrl || '').trim() || '/pages/robots/index'
+/**
+ * 登录成功后回跳：优先 redirectTo；若目标是 tabBar 页面则 switchTab；最后清理 REDIRECT_KEY
+ */
+export function backToRedirect() {
+	const redirectUrl = normalizeUrl(uni.getStorageSync(REDIRECT_KEY) || '') || '/pages/robots/index'
+	const clear = () => {
+		uni.removeStorageSync(REDIRECT_KEY)
+	}
+
+	if (isTabBarUrl(redirectUrl)) {
+		clear()
+		return uni.switchTab({
+			// switchTab 不稳定支持 query，这里只保留 path
+			url: normalizeUrl(toRoutePath(redirectUrl))
+		})
+	}
 
 	uni.redirectTo({
 		url: redirectUrl,
+		success: () => clear(),
 		fail: () => {
-			uni.switchTab({
-				url: redirectUrl,
-				fail: () => {
-					uni.reLaunch({ url: redirectUrl })
-				}
-			})
+			// 兜底：如果是 tabBar 导致 redirectTo 失败，改用 switchTab
+			if (isTabBarUrl(redirectUrl)) {
+				clear()
+				return uni.switchTab({
+					url: normalizeUrl(toRoutePath(redirectUrl))
+				})
+			}
+			clear()
+			uni.reLaunch({ url: redirectUrl })
 		}
 	})
 }
