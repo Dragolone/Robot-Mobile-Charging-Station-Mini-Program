@@ -11,17 +11,17 @@
 		<view class="card">
 			<view class="section-title">快捷入口</view>
 
-			<view class="item" @click="goRobots">
+			<view class="item" @tap="goRobots">
 				<text class="label">机器人列表</text>
 				<text class="value">查看所有机器人</text>
 			</view>
 
-			<view class="item" @click="showHelp">
+			<view class="item" @tap="showHelp">
 				<text class="label">使用帮助</text>
 				<text class="value">常见问题与说明</text>
 			</view>
 
-			<view class="item" @click="feedback">
+			<view class="item" @tap="feedback">
 				<text class="label">意见反馈</text>
 				<text class="value">提交问题与建议</text>
 			</view>
@@ -30,12 +30,17 @@
 		<view class="card">
 			<view class="section-title">工具</view>
 
-			<view class="item" @click="copyDeviceInfo">
+			<view class="item" @tap="copyDeviceInfo">
 				<text class="label">复制设备信息</text>
 				<text class="value">{{ deviceSummary }}</text>
 			</view>
 
-			<view class="item danger" @click="clearCache">
+			<view class="item danger" @tap="logout">
+				<text class="label">退出登录</text>
+				<text class="value">清理登录态并返回登录页</text>
+			</view>
+
+			<view class="item danger" @tap="clearCache">
 				<text class="label">清除本地缓存</text>
 				<text class="value">不会影响云端数据</text>
 			</view>
@@ -49,6 +54,10 @@
 
 <script setup>
 import { ref, onMounted } from 'vue'
+
+const TOKEN_KEY = 'uni_id_token'
+const EXPIRED_KEY = 'uni_id_token_expired'
+const REDIRECT_KEY = '_login_redirect_url_'
 
 const deviceSummary = ref('点击复制')
 
@@ -96,15 +105,75 @@ function copyDeviceInfo() {
 }
 
 function clearCache() {
+	console.log('[my] clearCache tap')
 	uni.showModal({
 		title: '清除本地缓存',
 		content: '将清除本地存储（不影响云端数据）。是否继续？',
 		success: (res) => {
 			if (!res.confirm) return
+			console.log('[my] clearCache before', {
+				uni_id_token: uni.getStorageSync(TOKEN_KEY),
+				uni_id_token_expired: uni.getStorageSync(EXPIRED_KEY),
+				_login_redirect_url_: uni.getStorageSync(REDIRECT_KEY)
+			})
+
+			// 清除本地缓存（全量清除）
 			try {
 				uni.clearStorageSync()
-			} catch (e) {}
-			uni.showToast({ title: '已清除', icon: 'success' })
+			} catch (e) {
+				console.log('[my] clearCache uni.clearStorageSync error', e)
+			}
+
+			// 强制清理登录态三项 key（防御性兜底）
+			try {
+				uni.removeStorageSync(TOKEN_KEY)
+				uni.removeStorageSync(EXPIRED_KEY)
+				uni.removeStorageSync(REDIRECT_KEY)
+			} catch (e) {
+				console.log('[my] clearCache removeStorageSync error', e)
+			}
+
+			console.log('[my] clearCache after', {
+				uni_id_token: uni.getStorageSync(TOKEN_KEY),
+				uni_id_token_expired: uni.getStorageSync(EXPIRED_KEY),
+				_login_redirect_url_: uni.getStorageSync(REDIRECT_KEY)
+			})
+
+			console.log('[my] clearCache reLaunch -> /pages/login/index')
+			uni.reLaunch({ url: '/pages/login/index' })
+		}
+	})
+}
+
+function logout() {
+	console.log('[my] logout tap')
+	uni.showModal({
+		title: '退出登录',
+		content: '将清理本机登录态并返回登录页，是否继续？',
+		success: (res) => {
+			if (!res.confirm) return
+			console.log('[my] logout before', {
+				uni_id_token: uni.getStorageSync(TOKEN_KEY),
+				uni_id_token_expired: uni.getStorageSync(EXPIRED_KEY),
+				_login_redirect_url_: uni.getStorageSync(REDIRECT_KEY)
+			})
+
+			try {
+				uni.removeStorageSync(TOKEN_KEY)
+				uni.removeStorageSync(EXPIRED_KEY)
+				uni.removeStorageSync(REDIRECT_KEY)
+			} catch (e) {
+				console.log('[my] logout removeStorageSync error', e)
+			}
+
+			console.log('[my] logout after', {
+				uni_id_token: uni.getStorageSync(TOKEN_KEY),
+				uni_id_token_expired: uni.getStorageSync(EXPIRED_KEY),
+				_login_redirect_url_: uni.getStorageSync(REDIRECT_KEY)
+			})
+
+			console.log('[my] logout reLaunch -> /pages/login/index')
+			uni.reLaunch({ url: '/pages/login/index' })
 		}
 	})
 }
