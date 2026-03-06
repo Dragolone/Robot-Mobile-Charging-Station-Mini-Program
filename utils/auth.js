@@ -166,3 +166,39 @@ export function backToRedirect() {
 	})
 }
 
+/**
+ * 退出登录并跳转到登录页（供“清缓存/退出登录”复用）
+ * - 不引入/不依赖 uid 参数
+ * - 不影响 ensureLoginForCurrentPage 现有逻辑
+ */
+export function logoutAndGoLogin(options = {}) {
+	const clearAllStorage = !!options.clearAllStorage
+
+	try {
+		if (clearAllStorage) {
+			uni.clearStorageSync()
+		} else {
+			clearToken()
+			uni.removeStorageSync(REDIRECT_KEY)
+		}
+	} catch (e) {
+		// 忽略清理异常，仍继续跳转
+	}
+
+	// 确保 redirectKey 一定被清掉（即使走了 clearStorageSync 失败）
+	try {
+		uni.removeStorageSync(REDIRECT_KEY)
+	} catch (e) {}
+
+	const loginUrl = getLoginPageUrl()
+
+	// 兼容：若登录页未来被配置为 tabBar，则用 switchTab
+	if (isTabBarUrl(loginUrl)) {
+		return uni.switchTab({
+			url: normalizeUrl(toRoutePath(loginUrl))
+		})
+	}
+
+	return uni.reLaunch({ url: loginUrl })
+}
+
