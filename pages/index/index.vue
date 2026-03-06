@@ -10,11 +10,21 @@
 <script>
 export default {
   onLoad() {
-    setTimeout(() => {
-      uni.redirectTo({
-        url: '/pages/test/test'
-      })
-    }, 500)
+		const TOKEN_KEY = 'uni_id_token'
+		const EXPIRED_KEY = 'uni_id_token_expired'
+
+		const token = String(uni.getStorageSync(TOKEN_KEY) || '').trim()
+		const expired = Number(uni.getStorageSync(EXPIRED_KEY) || 0)
+		const isLoggedIn = !!token && !!expired && expired > Date.now()
+
+		// 避免部分端 onLoad 里直接跳转异常
+		setTimeout(() => {
+			if (isLoggedIn) {
+				uni.switchTab({ url: '/pages/robots/index' })
+			} else {
+				uni.redirectTo({ url: '/pages/login/index' })
+			}
+		}, 0)
   }
 }
 </script>

@@ -35,6 +35,11 @@
 				<text class="value">{{ deviceSummary }}</text>
 			</view>
 
+			<view class="item" @tap="bindTestRobot">
+				<text class="label">绑定测试机器人</text>
+				<text class="value">开发验收用（后续替换二维码绑定）</text>
+			</view>
+
 			<view class="item danger" @tap="logout">
 				<text class="label">退出登录</text>
 				<text class="value">清理登录态并返回登录页</text>
@@ -46,6 +51,30 @@
 			</view>
 		</view>
 
+		<view class="card">
+			<view class="section-title">开发调试</view>
+
+			<view class="item">
+				<text class="label">登录状态</text>
+				<text class="value">{{ debugLoginText }}</text>
+			</view>
+
+			<view class="item">
+				<text class="label">uid</text>
+				<text class="value">{{ profile?.uid || '-' }}</text>
+			</view>
+
+			<view class="item">
+				<text class="label">username</text>
+				<text class="value">{{ profile?.username || '-' }}</text>
+			</view>
+
+			<view class="item">
+				<text class="label">nickname</text>
+				<text class="value">{{ profile?.nickname || '-' }}</text>
+			</view>
+		</view>
+
 		<view class="footer">
 			<text class="footer-text">Robot Charging Station</text>
 		</view>
@@ -54,12 +83,28 @@
 
 <script setup>
 import { ref, onMounted } from 'vue'
+import { computed } from 'vue'
+import { onShow } from '@dcloudio/uni-app'
+import { isLoggedIn } from '@/utils/auth.js'
 
 const TOKEN_KEY = 'uni_id_token'
 const EXPIRED_KEY = 'uni_id_token_expired'
 const REDIRECT_KEY = '_login_redirect_url_'
 
+const userService = uniCloud.importObject('userService', {
+	customUI: true,
+	errorOptions: { type: 'toast' }
+})
+
 const deviceSummary = ref('点击复制')
+const profile = ref(null)
+const profileLoading = ref(false)
+
+const debugLoginText = computed(() => {
+	if (profileLoading.value) return '已登录（加载中…）'
+	if (profile.value && profile.value.uid) return '已登录'
+	return '未登录'
+})
 
 onMounted(() => {
 	try {
@@ -72,6 +117,23 @@ onMounted(() => {
 		deviceSummary.value = '点击复制'
 	}
 })
+
+onShow(() => {
+	loadMyProfile()
+})
+
+async function loadMyProfile() {
+	profileLoading.value = true
+	try {
+		const data = await userService.getMyProfile()
+		profile.value = data || null
+	} catch (e) {
+		console.error('[my] getMyProfile failed:', e)
+		profile.value = null
+	} finally {
+		profileLoading.value = false
+	}
+}
 
 function goRobots() {
 	uni.switchTab({ url: '/pages/robots/index' })
@@ -100,6 +162,34 @@ function copyDeviceInfo() {
 		data: text,
 		success: () => {
 			uni.showToast({ title: '已复制', icon: 'success' })
+		}
+	})
+}
+
+async function bindTestRobot() {
+	if (!isLoggedIn()) {
+		uni.navigateTo({ url: '/pages/login/index' })
+		return
+	}
+
+	uni.showModal({
+		title: '绑定测试机器人',
+		content: '请输入 robotCode（例如 ROBOT-001）',
+		editable: true,
+		placeholderText: 'ROBOT-001',
+		success: async (res) => {
+			if (!res.confirm) return
+			const robotCode = String(res.content || 'ROBOT-001').trim() || 'ROBOT-001'
+			try {
+				const r = await userService.bindRobotForTest(robotCode)
+				if (r?.alreadyBound) {
+					uni.showToast({ title: '已绑定（无需重复绑定）', icon: 'none' })
+				} else {
+					uni.showToast({ title: '绑定成功', icon: 'success' })
+				}
+			} catch (e) {
+				uni.showToast({ title: e?.errMsg || e?.message || '绑定失败', icon: 'none' })
+			}
 		}
 	})
 }

@@ -1,5 +1,8 @@
 <template>
 	<view class="container">
+		<view v-if="robotList.length === 0" class="empty">
+			<text class="empty-text">暂无已绑定机器人</text>
+		</view>
 		<view class="robot-list">
 			<view 
 				v-for="robot in robotList" 
@@ -51,10 +54,13 @@
 import { ref } from 'vue'
 import { onShow } from '@dcloudio/uni-app'
 import { formatBattery } from '@/utils/format.js'
-import { callRobotService } from '@/services/robotService.js'
 import { ensureLoginForCurrentPage } from '@/utils/auth.js'
 
 const robotList = ref([])
+const userService = uniCloud.importObject('userService', {
+	customUI: true,
+	errorOptions: { type: 'toast' }
+})
 
 onShow(() => {
 	if (!ensureLoginForCurrentPage()) return
@@ -62,25 +68,27 @@ onShow(() => {
 })
 
 async function loadRobotList() {
-	const data = await callRobotService({ action: 'robotList' })
-	if (!data) return
+	try {
+		const data = await userService.listMyRobots()
+		const list = (data && data.list) || []
 
-	// 云函数返回：[{ robot, telemetry, faultCount }]
-	// 页面模板期望：robotCode/model/online/vehicleBattery/packBattery/lastSeen/faultCount
-	robotList.value = (data.list || []).map(item => {
-		const robot = item.robot || {}
-		const telemetry = item.telemetry || {}
-		return {
-			robotCode: robot.robotCode,
-			model: robot.model,
-			online: robot.online,
-			location: robot.location,
-			vehicleBattery: telemetry.vehicleBattery,
-			packBattery: telemetry.packBattery,
-			lastSeen: telemetry.lastSeen,
-			faultCount: item.faultCount || 0
-		}
-	})
+		robotList.value = list.map((item) => {
+			const telemetry = item.telemetry_latest || {}
+			return {
+				robotCode: item.robotCode,
+				model: item.model,
+				online: item.online,
+				location: item.location,
+				vehicleBattery: telemetry.vehicleBattery,
+				packBattery: telemetry.packBattery,
+				lastSeen: telemetry.lastSeen,
+				faultCount: item.faultCount || 0
+			}
+		})
+	} catch (e) {
+		uni.showToast({ title: e?.errMsg || e?.message || '获取机器人列表失败', icon: 'none' })
+		robotList.value = []
+	}
 }
 
 function goToDetail(robotCode) {
@@ -95,6 +103,17 @@ function goToDetail(robotCode) {
 	min-height: 100vh;
 	background-color: #f5f5f5;
 	padding: 20rpx;
+}
+
+.empty {
+	padding: 40rpx 20rpx 20rpx;
+	display: flex;
+	justify-content: center;
+}
+
+.empty-text {
+	color: #6b7280;
+	font-size: 28rpx;
 }
 
 .robot-list {
