@@ -94,9 +94,20 @@ export function clearToken() {
 export function isLoggedIn() {
 	const token = getToken()
 	if (!token) return false
-	const expired = Number(uni.getStorageSync(EXPIRED_KEY) || 0)
-	if (expired && expired < Date.now()) return false
-	return true
+
+	// 优先使用本地存储的过期时间；没有时尝试从 uniCloud 运行时获取
+	let expired = Number(uni.getStorageSync(EXPIRED_KEY) || 0)
+	if (!expired) {
+		try {
+			expired = Number(uniCloud.getCurrentUserInfo()?.tokenExpired || 0)
+		} catch (e) {
+			expired = 0
+		}
+	}
+
+	// expired 为 0 时，无法确认有效期：按“未登录/需重新登录”处理更安全
+	if (!expired) return false
+	return expired > Date.now()
 }
 
 /**

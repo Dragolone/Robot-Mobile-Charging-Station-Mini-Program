@@ -51,13 +51,13 @@
 				</view>
 				
 				<!-- 故障列表 -->
-				<view class="fault-card" v-if="robotDetail?.faults && robotDetail.faults.length > 0">
+				<view class="fault-card" v-if="faults && faults.length > 0">
 					<view class="fault-header">
-						<text class="fault-title">故障列表 ({{ robotDetail.faults.length }})</text>
+						<text class="fault-title">故障列表 ({{ faults.length }})</text>
 					</view>
 					<view class="fault-list">
 						<view 
-							v-for="(fault, index) in robotDetail.faults" 
+							v-for="(fault, index) in faults" 
 							:key="index" 
 							class="fault-item"
 						>
@@ -178,6 +178,12 @@ const robotCode = ref('')
 const robotDetail = ref(null)
 const positionX = ref('')
 const positionY = ref('')
+const faults = ref([])
+
+const userService = uniCloud.importObject('userService', {
+	customUI: true,
+	errorOptions: { type: 'toast' }
+})
 
 onShow(() => {
 	if (!ensureLoginForCurrentPage()) return
@@ -192,19 +198,22 @@ onShow(() => {
 })
 
 async function loadRobotDetail() {
-	const data = await callRobotService({ action: 'robotDetail', robotCode: robotCode.value })
-	if (!data) return
+	try {
+		const data = await userService.getMyRobotDetail(robotCode.value)
+		const robot = data.robot || {}
+		const telemetry = data.telemetry_latest || {}
 
-	const robot = data.robot || {}
-	const telemetry = data.telemetry || {}
-
-	// 页面模板期望 robotDetail 直接包含电量/lastSeen/faults/location 等字段
-	robotDetail.value = {
-		...robot,
-		vehicleBattery: telemetry.vehicleBattery,
-		packBattery: telemetry.packBattery,
-		lastSeen: telemetry.lastSeen,
-		faults: data.faults || []
+		faults.value = data.faults || []
+		robotDetail.value = {
+			...robot,
+			vehicleBattery: telemetry.vehicleBattery,
+			packBattery: telemetry.packBattery,
+			lastSeen: telemetry.lastSeen
+		}
+	} catch (e) {
+		uni.showToast({ title: e?.errMsg || e?.message || '获取详情失败', icon: 'none' })
+		robotDetail.value = null
+		faults.value = []
 	}
 }
 

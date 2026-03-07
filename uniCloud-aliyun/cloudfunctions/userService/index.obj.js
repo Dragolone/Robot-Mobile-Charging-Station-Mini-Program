@@ -8,6 +8,9 @@
 'use strict'
 
 const uniID = require('uni-id-common')
+const db = uniCloud.database()
+const dbCmd = db.command
+const $ = dbCmd.aggregate
 
 function fail(errMsg, errCode = 1, data = {}) {
 	return { errCode, errMsg, ...data }
@@ -52,6 +55,222 @@ module.exports = {
 			throw error
 		}
 		return result
+	},
+
+	/**
+	 * 绑定机器人（测试用）
+	 * - 使用 this.auth.uid
+	 * - 不信任前端 uid/userId 参数（不接收也不使用）
+	 */
+	async bindRobotForTest(robotCode) {
+		const uid = this.auth.uid
+		const code = String(robotCode || '').trim()
+		if (!code) throw fail('robotCode 不能为空', 400)
+
+		const now = Date.now()
+
+		// 1) 机器人是否存在
+		const robotRes = await db.collection('robots').where({ robotCode: code }).limit(1).get()
+		if (!robotRes.data || robotRes.data.length === 0) {
+			throw fail('robotCode 不存在', 404)
+		}
+
+		// 2) 当前 uid 是否已绑定该 robotCode
+		const myBindRes = await db
+			.collection('robot_bindings')
+			.where({ uid, robotCode: code, status: 'active' })
+			.limit(1)
+			.get()
+		if (myBindRes.data && myBindRes.data.length > 0) {
+			return {
+				alreadyBound: true,
+				robotCode: code,
+				uid
+			}
+		}
+
+		// 3) robotCode 是否已被其他 uid 绑定
+		const anyBindRes = await db
+			.collection('robot_bindings')
+			.where({ robotCode: code, status: 'active' })
+			.limit(1)
+			.get()
+		if (anyBindRes.data && anyBindRes.data.length > 0) {
+			const exist = anyBindRes.data[0]
+			if (exist.uid && exist.uid !== uid) {
+				throw fail('该机器人已被其他用户绑定', 409)
+			}
+		}
+
+		// 4) 创建绑定
+		const doc = {
+			uid,
+			robotCode: code,
+			bindTime: now,
+			status: 'active',
+			source: 'test',
+			createTime: now,
+			updateTime: now
+		}
+		const addRes = await db.collection('robot_bindings').add(doc)
+
+		return {
+			created: true,
+			bindingId: addRes.id,
+			robotCode: code,
+			uid
+		}
+	},
+
+	/**
+	 * 获取当前登录用户绑定的机器人列表
+	 * - 使用 this.auth.uid
+	 */
+	async listMyRobots() {
+		const uid = this.auth.uid
+
+		// 1) 查绑定
+		const bindingsRes = await db
+			.collection('robot_bindings')
+			.where({ uid, status: 'active' })
+			.field({ robotCode: true })
+			.get()
+
+		const robotCodes = (bindingsRes.data || [])
+			.map((b) => String(b.robotCode || '').trim())
+			.filter(Boolean)
+
+		if (robotCodes.length === 0) {
+			return { list: [] }
+		}
+
+		// 2) 查 robots
+		const robotsRes = await db
+			.collection('robots')
+			.where({ robotCode: dbCmd.in(robotCodes) })
+			.get()
+		const robots = robotsRes.data || []
+		const robotMap = {}
+		robots.forEach((r) => {
+			if (r && r.robotCode) robotMap[r.robotCode] = r
+		})
+
+		// 3) 查 telemetry_latest
+		const telemetryRes = await db
+			.collection('telemetry_latest')
+			.where({ robotCode: dbCmd.in(robotCodes) })
+			.get()
+		const telemetryMap = {}
+		;(telemetryRes.data || []).forEach((t) => {
+			if (t && t.robotCode) telemetryMap[t.robotCode] = t
+		})
+
+		// 4) faultCount（聚合）
+		const faultsAggRes = await db
+			.collection('faults')
+			.aggregate()
+			.match({ robotCode: dbCmd.in(robotCodes) })
+			.group({ _id: '$robotCode', count: $.sum(1) })
+			.end()
+		const faultCountMap = {}
+		;(faultsAggRes.data || []).forEach((item) => {
+			faultCountMap[item._id] = item.count
+		})
+
+		// 5) 按绑定顺序组装（且只返回属于该 uid 的 robots）
+		const list = robotCodes
+			.map((code) => {
+				const robot = robotMap[code]
+				if (!robot) return null
+				return {
+					robotCode: robot.robotCode,
+					model: robot.model,
+					online: robot.online,
+					location: robot.location,
+					telemetry_latest: telemetryMap[code] || null,
+					faultCount: faultCountMap[code] || 0
+				}
+			})
+			.filter(Boolean)
+
+		return { list }
+	},
+
+	/**
+	 * 获取当前用户的机器人详情
+	 * - 使用 this.auth.uid
+	 * - 先校验 robotCode 是否属于当前 uid
+	 */
+	async getMyRobotDetail(robotCode) {
+		const uid = this.auth.uid
+		const code = String(robotCode || '').trim()
+		if (!code) throw fail('robotCode 不能为空', 400)
+
+		// 1) 校验归属
+		const bindRes = await db
+			.collection('robot_bindings')
+			.where({ uid, robotCode: code, status: 'active' })
+			.limit(1)
+			.get()
+		if (!bindRes.data || bindRes.data.length === 0) {
+			throw fail('无权限访问该机器人', 403)
+		}
+
+		// 2) 取 robot
+		const robotRes = await db.collection('robots').where({ robotCode: code }).limit(1).get()
+		const robot = robotRes.data && robotRes.data.length ? robotRes.data[0] : null
+		if (!robot) throw fail('robotCode 不存在', 404)
+
+		// 3) 取 telemetry_latest
+		const telemetryRes = await db
+			.collection('telemetry_latest')
+			.where({ robotCode: code })
+			.orderBy('ts', 'desc')
+			.limit(1)
+			.get()
+		const telemetry_latest =
+			telemetryRes.data && telemetryRes.data.length ? telemetryRes.data[0] : null
+
+		// 4) 最近 faults
+		const faultsRes = await db
+			.collection('faults')
+			.where({ robotCode: code })
+			.orderBy('ts', 'desc')
+			.limit(20)
+			.get()
+
+		return {
+			robot,
+			telemetry_latest,
+			faults: faultsRes.data || []
+		}
+	},
+
+	/**
+	 * 获取当前登录用户信息（开发调试用）
+	 * - 必须基于 this.auth.uid
+	 */
+	async getMyProfile() {
+		const uid = this.auth.uid
+		const res = await db
+			.collection('uni-id-users')
+			.where({ _id: uid })
+			.field({
+				username: true,
+				nickname: true,
+				mobile: true
+			})
+			.limit(1)
+			.get()
+
+		const user = res.data && res.data.length ? res.data[0] : null
+
+		return {
+			uid,
+			username: user?.username || '',
+			nickname: user?.nickname || '',
+			mobile: user?.mobile || ''
+		}
 	},
 	/**
 	 * 测试连通性（仅用于开发阶段）
