@@ -51,7 +51,7 @@
 </template>
 
 <script setup>
-import { ref } from 'vue'
+import { ref, onMounted, onBeforeUnmount } from 'vue'
 import { onShow } from '@dcloudio/uni-app'
 import { formatBattery } from '@/utils/format.js'
 import { ensureLoginForCurrentPage } from '@/utils/auth.js'
@@ -65,6 +65,14 @@ const userService = uniCloud.importObject('userService', {
 onShow(() => {
 	if (!ensureLoginForCurrentPage()) return
 	loadRobotList()
+})
+
+onMounted(() => {
+	uni.$on('robot:bound', onRobotBound)
+})
+
+onBeforeUnmount(() => {
+	uni.$off('robot:bound', onRobotBound)
 })
 
 async function loadRobotList() {
@@ -95,6 +103,10 @@ function goToDetail(robotCode) {
 	uni.navigateTo({
 		url: `/pages/robots/detail?robotCode=${robotCode}`
 	})
+}
+
+function onRobotBound() {
+	loadRobotList()
 }
 </script>
 
