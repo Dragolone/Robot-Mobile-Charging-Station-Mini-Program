@@ -258,6 +258,7 @@ module.exports = {
 			.field({
 				username: true,
 				nickname: true,
+				avatar: true,
 				mobile: true
 			})
 			.limit(1)
@@ -269,7 +270,53 @@ module.exports = {
 			uid,
 			username: user?.username || '',
 			nickname: user?.nickname || '',
+			avatar: user?.avatar || '',
 			mobile: user?.mobile || ''
+		}
+	},
+
+	/**
+	 * 更新当前登录用户资料
+	 * - 仅允许修改 nickname / avatar
+	 * - 必须基于 this.auth.uid，禁止前端传 uid 指定他人
+	 */
+	async updateMyProfile(data = {}) {
+		const uid = this.auth.uid
+		const payload = data && typeof data === 'object' ? data : {}
+
+		if (payload.uid || payload.userId || payload._id) {
+			// 明确拒绝“试图指定 uid”的行为
+			throw fail('不允许指定 uid 更新资料', 403)
+		}
+
+		let nickname = payload.nickname
+		if (typeof nickname !== 'string') nickname = String(nickname ?? '')
+		nickname = nickname.trim()
+		if (!nickname) throw fail('昵称不能为空', 400)
+		if (nickname.length < 1 || nickname.length > 20) {
+			throw fail('昵称长度需为 1~20', 400)
+		}
+
+		const updateDoc = {
+			nickname,
+			updateTime: Date.now()
+		}
+
+		if (Object.prototype.hasOwnProperty.call(payload, 'avatar')) {
+			let avatar = payload.avatar
+			if (typeof avatar !== 'string') avatar = String(avatar ?? '')
+			updateDoc.avatar = avatar.trim()
+		}
+
+		const updateRes = await db.collection('uni-id-users').doc(uid).update(updateDoc)
+		const updated = Boolean(updateRes && updateRes.updated)
+		if (!updated) throw fail('资料更新失败', 500)
+
+		return {
+			ok: true,
+			uid,
+			nickname: updateDoc.nickname,
+			avatar: updateDoc.avatar ?? undefined
 		}
 	},
 	/**

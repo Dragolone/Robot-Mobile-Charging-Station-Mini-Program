@@ -25,6 +25,18 @@
 		}
 	  },
 	  {
+		"path": "pages/profile/index",
+		"style": {
+		  "navigationBarTitleText": "个人资料"
+		}
+	  },
+	  {
+		"path": "pages/profile/edit-nickname",
+		"style": {
+		  "navigationBarTitleText": "修改昵称"
+		}
+	  },
+	  {
 		"path": "pages/robots/detail",
 		"style": {
 		  "navigationBarTitleText": "机器人详情"
