@@ -4,9 +4,11 @@
 			<view class="section-title">资料信息</view>
 
 			<view
-				class="item clickable"
+				class="item clickable pressable-row"
 				:class="{ 'item-disabled': avatarUploading }"
-				:hover-class="avatarUploading ? '' : 'item-hover'"
+				:hover-class="avatarUploading ? '' : 'pressable-row-hover'"
+				hover-start-time="20"
+				hover-stay-time="80"
 				@tap="handleAvatarClick"
 			>
 				<text class="label">头像</text>
@@ -16,17 +18,35 @@
 				</view>
 			</view>
 
-			<view class="item">
+			<view
+				class="item clickable pressable-row"
+				hover-class="pressable-row-hover"
+				hover-start-time="20"
+				hover-stay-time="80"
+				@tap="copyProfileField(profile?.uid, 'uid')"
+			>
 				<text class="label">uid</text>
 				<text class="value">{{ profile?.uid || '-' }}</text>
 			</view>
 
-			<view class="item">
+			<view
+				class="item clickable pressable-row"
+				hover-class="pressable-row-hover"
+				hover-start-time="20"
+				hover-stay-time="80"
+				@tap="copyProfileField(profile?.username, '用户名')"
+			>
 				<text class="label">用户名</text>
 				<text class="value">{{ profile?.username || '-' }}</text>
 			</view>
 
-			<view class="item clickable" hover-class="item-hover" @tap="goEditNickname">
+			<view
+				class="item clickable pressable-row"
+				hover-class="pressable-row-hover"
+				hover-start-time="20"
+				hover-stay-time="80"
+				@tap="goEditNickname"
+			>
 				<text class="label">昵称</text>
 				<view class="right">
 					<text class="value">{{ displayNickname }}</text>
@@ -126,6 +146,21 @@ function goEditNickname() {
 	}
 	const nickname = encodeURIComponent(String(profile.value?.nickname || '').trim())
 	uni.navigateTo({ url: `/pages/profile/edit-nickname?nickname=${nickname}` })
+}
+
+function copyProfileField(value, label) {
+	const text = String(value || '').trim()
+	if (!text) {
+		uni.showToast({ title: `暂无可复制的${label}`, icon: 'none' })
+		return
+	}
+
+	uni.setClipboardData({
+		data: text,
+		success: () => {
+			uni.showToast({ title: '已复制', icon: 'success' })
+		}
+	})
 }
 
 async function handleAvatarClick() {
@@ -264,6 +299,7 @@ function isChooseCanceled(errMsg) {
 </script>
 
 <style scoped>
+@import '@/styles/pressable.css';
 .page {
 	padding: 24rpx;
 	background: #f6f7fb;
@@ -310,10 +346,6 @@ function isChooseCanceled(errMsg) {
 
 .clickable {
 	cursor: pointer;
-}
-
-.item-hover {
-	background: rgba(0, 0, 0, 0.03);
 }
 
 .item-disabled {
