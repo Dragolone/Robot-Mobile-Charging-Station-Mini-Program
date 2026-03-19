@@ -1,10 +1,11 @@
 <template>
 	<view class="page">
-		<view class="header">
-			<image class="avatar" src="/static/my.png" mode="aspectFill"></image>
+		<view class="header" hover-class="header-hover" @tap="goProfile">
+			<image class="avatar" :src="displayAvatar" mode="aspectFill"></image>
 			<view class="meta">
-				<view class="title">我的</view>
-				<view class="sub">通用功能入口（不影响后端）</view>
+				<view class="title">{{ displayNickname }}</view>
+				<view class="sub">{{ displayUsername }}</view>
+				<view class="hint">点击查看个人资料</view>
 			</view>
 		</view>
 
@@ -82,7 +83,7 @@
 </template>
 
 <script setup>
-import { ref, onMounted } from 'vue'
+import { ref, onMounted, onBeforeUnmount } from 'vue'
 import { computed } from 'vue'
 import { onShow } from '@dcloudio/uni-app'
 import { isLoggedIn } from '@/utils/auth.js'
@@ -90,15 +91,36 @@ import { isLoggedIn } from '@/utils/auth.js'
 const TOKEN_KEY = 'uni_id_token'
 const EXPIRED_KEY = 'uni_id_token_expired'
 const REDIRECT_KEY = '_login_redirect_url_'
+const DEFAULT_AVATAR = '/static/default-avatar.png'
 
 const userService = uniCloud.importObject('userService', {
 	customUI: true,
 	errorOptions: { type: 'toast' }
 })
+const userServiceSilent = uniCloud.importObject('userService', {
+	customUI: true,
+	errorOptions: { type: 'none' }
+})
 
 const deviceSummary = ref('点击复制')
 const profile = ref(null)
 const profileLoading = ref(false)
+const lastFetchAt = ref(0)
+
+const displayUsername = computed(() => profile.value?.username || '-')
+const displayNickname = computed(() => {
+	const nickname = String(profile.value?.nickname || '').trim()
+	if (nickname) return nickname
+
+	const username = String(profile.value?.username || '').trim()
+	if (username) return username
+
+	return profileLoading.value ? '加载中…' : '未登录'
+})
+const displayAvatar = computed(() => {
+	const avatar = String(profile.value?.avatar || '').trim()
+	return avatar || DEFAULT_AVATAR
+})
 
 const debugLoginText = computed(() => {
 	if (profileLoading.value) return '已登录（加载中…）'
@@ -116,6 +138,9 @@ onMounted(() => {
 	} catch (e) {
 		deviceSummary.value = '点击复制'
 	}
+
+	// 个人资料页保存后立即同步本地展示（无需引入全局状态）
+	uni.$on('profile:updated', onProfileUpdated)
 })
 
 onShow(() => {
@@ -123,20 +148,56 @@ onShow(() => {
 })
 
 async function loadMyProfile() {
+	// 避免短时间重复触发造成闪烁/多次报错
+	if (profileLoading.value) return
+	const now = Date.now()
+	if (now - lastFetchAt.value < 800) return
+	lastFetchAt.value = now
+
+	if (!isLoggedIn()) {
+		profile.value = null
+		profileLoading.value = false
+		return
+	}
+
 	profileLoading.value = true
 	try {
-		const data = await userService.getMyProfile()
+		const data = await userServiceSilent.getMyProfile()
 		profile.value = data || null
 	} catch (e) {
 		console.error('[my] getMyProfile failed:', e)
-		profile.value = null
+		// 有旧数据就保留，避免顶部闪烁；首次失败则保持占位
 	} finally {
 		profileLoading.value = false
 	}
 }
 
+function onProfileUpdated(payload) {
+	try {
+		const nickname = String(payload?.nickname || '').trim()
+		const avatar = String(payload?.avatar || '').trim()
+		if (!profile.value) profile.value = {}
+		if (nickname) profile.value.nickname = nickname
+		if (avatar) profile.value.avatar = avatar
+	} catch (e) {
+		console.log('[my] onProfileUpdated error', e)
+	}
+}
+
+onBeforeUnmount(() => {
+	uni.$off('profile:updated', onProfileUpdated)
+})
+
 function goRobots() {
 	uni.switchTab({ url: '/pages/robots/index' })
+}
+
+function goProfile() {
+	if (!isLoggedIn()) {
+		uni.navigateTo({ url: '/pages/login/index' })
+		return
+	}
+	uni.navigateTo({ url: '/pages/profile/index' })
 }
 
 function showHelp() {
@@ -286,6 +347,10 @@ function logout() {
 	box-shadow: 0 8rpx 24rpx rgba(0, 0, 0, 0.06);
 }
 
+.header-hover {
+	opacity: 0.92;
+}
+
 .avatar {
 	width: 104rpx;
 	height: 104rpx;
@@ -307,6 +372,12 @@ function logout() {
 	margin-top: 6rpx;
 	font-size: 24rpx;
 	color: #6b7280;
+}
+
+.hint {
+	margin-top: 10rpx;
+	font-size: 24rpx;
+	color: #9ca3af;
 }
 
 .card {
