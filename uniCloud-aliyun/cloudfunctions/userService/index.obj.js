@@ -289,35 +289,46 @@ module.exports = {
 			throw fail('不允许指定 uid 更新资料', 403)
 		}
 
-		let nickname = payload.nickname
-		if (typeof nickname !== 'string') nickname = String(nickname ?? '')
-		nickname = nickname.trim()
-		if (!nickname) throw fail('昵称不能为空', 400)
-		if (nickname.length < 1 || nickname.length > 20) {
-			throw fail('昵称长度需为 1~20', 400)
-		}
-
 		const updateDoc = {
-			nickname,
 			updateTime: Date.now()
+		}
+		const responseData = {
+			ok: true,
+			uid
+		}
+		let hasUpdatableField = false
+
+		if (Object.prototype.hasOwnProperty.call(payload, 'nickname')) {
+			let nickname = payload.nickname
+			if (typeof nickname !== 'string') nickname = String(nickname ?? '')
+			nickname = nickname.trim()
+			if (!nickname) throw fail('昵称不能为空', 400)
+			if (nickname.length < 1 || nickname.length > 20) {
+				throw fail('昵称长度需为 1~20', 400)
+			}
+			updateDoc.nickname = nickname
+			responseData.nickname = nickname
+			hasUpdatableField = true
 		}
 
 		if (Object.prototype.hasOwnProperty.call(payload, 'avatar')) {
 			let avatar = payload.avatar
 			if (typeof avatar !== 'string') avatar = String(avatar ?? '')
-			updateDoc.avatar = avatar.trim()
+			avatar = avatar.trim()
+			if (avatar) {
+				updateDoc.avatar = avatar
+				responseData.avatar = avatar
+				hasUpdatableField = true
+			}
 		}
 
-		const updateRes = await db.collection('uni-id-users').doc(uid).update(updateDoc)
-		const updated = Boolean(updateRes && updateRes.updated)
-		if (!updated) throw fail('资料更新失败', 500)
-
-		return {
-			ok: true,
-			uid,
-			nickname: updateDoc.nickname,
-			avatar: updateDoc.avatar ?? undefined
+		if (!hasUpdatableField) {
+			throw fail('未提供可更新的资料字段', 400)
 		}
+
+		await db.collection('uni-id-users').doc(uid).update(updateDoc)
+
+		return responseData
 	},
 	/**
 	 * 测试连通性（仅用于开发阶段）

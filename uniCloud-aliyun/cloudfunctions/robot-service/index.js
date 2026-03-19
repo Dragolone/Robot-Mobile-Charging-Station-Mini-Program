@@ -6,6 +6,7 @@
 
 'use strict'
 
+const uniID = require('uni-id-common')
 const db = uniCloud.database()
 const dbCmd = db.command
 const $ = dbCmd.aggregate
@@ -30,6 +31,21 @@ async function getRobotByCode(robotCode) {
     return null
   }
   return res.data[0]
+}
+
+async function getAuthUid(context, uniIdToken) {
+  const token = String(uniIdToken || '').trim()
+  if (!token) {
+    return fail(30201, '未登录')
+  }
+
+  const uniIDIns = uniID.createInstance({ context })
+  const checkTokenRes = await uniIDIns.checkToken(token)
+  if (!checkTokenRes || checkTokenRes.errCode !== 0 || !checkTokenRes.uid) {
+    return fail(checkTokenRes?.errCode || 30202, checkTokenRes?.message || '登录状态失效')
+  }
+
+  return success({ uid: checkTokenRes.uid })
 }
 
 async function handleRobotList() {
@@ -182,6 +198,62 @@ async function handleCommandCreate(event) {
   })
 }
 
+async function handleBindRobotByCode(event, context) {
+  const auth = await getAuthUid(context, event && event.uniIdToken)
+  if (auth.code !== 0) {
+    return auth
+  }
+
+  const uid = auth.data.uid
+  const robotCode = String((event && event.robotCode) || '').trim()
+  const bindSource = String((event && event.bindSource) || 'manual').trim() || 'manual'
+
+  if (!robotCode) {
+    return fail(3001, 'robotCode 不能为空')
+  }
+
+  const robot = await getRobotByCode(robotCode)
+  if (!robot) {
+    return fail(3002, '机器人不存在')
+  }
+
+  const existRes = await db
+    .collection('robot_bindings')
+    .where({
+      uid,
+      robotCode,
+      status: 'active'
+    })
+    .limit(1)
+    .get()
+
+  if (existRes.data && existRes.data.length > 0) {
+    return fail(3003, '已经绑定过该机器人')
+  }
+
+  const now = Date.now()
+  const doc = {
+    uid,
+    robotId: robot._id || '',
+    robotCode,
+    bindSource,
+    status: 'active',
+    createdAt: now,
+    updatedAt: now
+  }
+
+  const addRes = await db.collection('robot_bindings').add(doc)
+
+  return success({
+    bindingId: addRes.id,
+    uid,
+    robotId: doc.robotId,
+    robotCode,
+    bindSource,
+    status: doc.status
+  })
+}
+
 exports.main = async (event, context) => {
 	console.log('EVENT_ACTION=', event && event.action, 'EVENT=', JSON.stringify(event))
   try {
@@ -201,6 +273,10 @@ exports.main = async (event, context) => {
 
     if (action === 'commandCreate') {
       return await handleCommandCreate(event)
+    }
+
+    if (action === 'bindRobotByCode') {
+      return await handleBindRobotByCode(event, context)
     }
 
     return fail(9002, '未知的 action')

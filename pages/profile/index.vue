@@ -1,15 +1,20 @@
 <template>
 	<view class="page">
-		<view class="header">
-			<image class="avatar" :src="displayAvatar" mode="aspectFill"></image>
-			<view class="meta">
-				<view class="title">{{ displayNickname }}</view>
-				<view class="sub">{{ displayUsername }}</view>
-			</view>
-		</view>
-
 		<view class="card">
 			<view class="section-title">资料信息</view>
+
+			<view
+				class="item clickable"
+				:class="{ 'item-disabled': avatarUploading }"
+				:hover-class="avatarUploading ? '' : 'item-hover'"
+				@tap="handleAvatarClick"
+			>
+				<text class="label">头像</text>
+				<view class="right">
+					<image class="avatar-thumb" :src="displayAvatar" mode="aspectFill"></image>
+					<text class="arrow">›</text>
+				</view>
+			</view>
 
 			<view class="item">
 				<text class="label">uid</text>
@@ -52,6 +57,8 @@ const profile = ref(null)
 const loading = ref(false)
 const loadFailed = ref(false)
 const lastFetchAt = ref(0)
+const avatarPreview = ref('')
+const avatarUploading = ref(false)
 
 const displayUsername = computed(() => profile.value?.username || '-')
 const displayNickname = computed(() => {
@@ -61,6 +68,8 @@ const displayNickname = computed(() => {
 	return username || '未登录'
 })
 const displayAvatar = computed(() => {
+	const preview = String(avatarPreview.value || '').trim()
+	if (preview) return preview
 	const avatar = String(profile.value?.avatar || '').trim()
 	return avatar || DEFAULT_AVATAR
 })
@@ -118,6 +127,140 @@ function goEditNickname() {
 	const nickname = encodeURIComponent(String(profile.value?.nickname || '').trim())
 	uni.navigateTo({ url: `/pages/profile/edit-nickname?nickname=${nickname}` })
 }
+
+async function handleAvatarClick() {
+	if (avatarUploading.value) return
+	if (!isLoggedIn()) {
+		uni.showToast({ title: '请先登录', icon: 'none' })
+		uni.navigateTo({ url: '/pages/login/index' })
+		return
+	}
+
+	const uid = String(profile.value?.uid || '').trim()
+	if (!uid) {
+		uni.showToast({ title: '资料加载中，请稍后', icon: 'none' })
+		return
+	}
+
+	const sourceType = await chooseAvatarSourceType()
+	if (!sourceType) return
+
+	try {
+		const tempFilePath = await chooseAvatarImage(sourceType)
+		if (!tempFilePath) return
+
+		const previousAvatar = String(profile.value?.avatar || '').trim()
+		avatarPreview.value = tempFilePath
+		avatarUploading.value = true
+			uni.showLoading({ title: '头像上传中...', mask: true })
+
+		try {
+			const uploadFilePath = await compressImageIfNeeded(tempFilePath)
+			const avatar = await uploadAvatarToCloud(uid, uploadFilePath)
+			await userService.updateMyProfile({ avatar })
+			if (profile.value) profile.value.avatar = avatar
+			avatarPreview.value = ''
+			uni.$emit('profile:updated', { avatar })
+			uni.showToast({ title: '头像更新成功', icon: 'success' })
+		} catch (e) {
+			console.error('[profile] update avatar failed:', e)
+			avatarPreview.value = ''
+			if (profile.value) profile.value.avatar = previousAvatar
+			uni.showToast({
+				title: e?.errMsg || e?.message || '头像更新失败',
+				icon: 'none'
+			})
+		} finally {
+			avatarUploading.value = false
+			uni.hideLoading()
+		}
+	} catch (err) {
+		const errMsg = String(err?.errMsg || err?.message || '')
+		if (isChooseCanceled(errMsg)) return
+		console.error('[profile] chooseImage failed:', err)
+		uni.showToast({ title: '选择图片失败，请重试', icon: 'none' })
+	}
+}
+
+async function uploadAvatarToCloud(uid, filePath) {
+	const ext = getFileExt(filePath)
+	const cloudPath = `user-avatar/${uid}/${Date.now()}.${ext}`
+	const uploadRes = await uniCloud.uploadFile({
+		filePath,
+		cloudPath,
+		fileType: 'image'
+	})
+	const avatar = String(
+		uploadRes?.fileID || uploadRes?.tempFileURL || uploadRes?.download_url || ''
+	).trim()
+	if (!avatar) throw new Error('头像上传失败')
+	return avatar
+}
+
+async function chooseAvatarSourceType() {
+	return new Promise((resolve) => {
+		uni.showActionSheet({
+			itemList: ['拍照', '从相册选择'],
+			success: (res) => {
+				resolve(res.tapIndex === 0 ? ['camera'] : ['album'])
+			},
+			fail: (err) => {
+				const errMsg = String(err?.errMsg || '')
+				if (isChooseCanceled(errMsg)) {
+					resolve(null)
+					return
+				}
+				console.error('[profile] showActionSheet failed:', err)
+				uni.showToast({ title: '无法打开选择菜单', icon: 'none' })
+				resolve(null)
+			}
+		})
+	})
+}
+
+async function chooseAvatarImage(sourceType) {
+	return new Promise((resolve, reject) => {
+		uni.chooseImage({
+			count: 1,
+			sizeType: ['original', 'compressed'],
+			sourceType,
+			success: (res) => {
+				const tempFilePath = String(res?.tempFilePaths?.[0] || '').trim()
+				resolve(tempFilePath)
+			},
+			fail: (err) => {
+				reject(err)
+			}
+		})
+	})
+}
+
+async function compressImageIfNeeded(filePath) {
+	try {
+		const res = await new Promise((resolve, reject) => {
+			uni.compressImage({
+				src: filePath,
+				quality: 80,
+				success: resolve,
+				fail: reject
+			})
+		})
+		return String(res?.tempFilePath || filePath).trim() || filePath
+	} catch (e) {
+		console.log('[profile] compressImage skipped:', e)
+		return filePath
+	}
+}
+
+function getFileExt(filePath) {
+	const cleanPath = String(filePath || '').split('?')[0]
+	const matched = cleanPath.match(/\.([a-zA-Z0-9]+)$/)
+	return matched?.[1]?.toLowerCase() || 'jpg'
+}
+
+function isChooseCanceled(errMsg) {
+	return errMsg.includes('cancel')
+}
 </script>
 
 <style scoped>
@@ -126,38 +269,6 @@ function goEditNickname() {
 	background: #f6f7fb;
 	min-height: 100vh;
 	box-sizing: border-box;
-}
-
-.header {
-	display: flex;
-	align-items: center;
-	padding: 24rpx;
-	border-radius: 20rpx;
-	background: #ffffff;
-	box-shadow: 0 8rpx 24rpx rgba(0, 0, 0, 0.06);
-}
-
-.avatar {
-	width: 112rpx;
-	height: 112rpx;
-	border-radius: 56rpx;
-	background: #f0f0f0;
-}
-
-.meta {
-	margin-left: 18rpx;
-}
-
-.title {
-	font-size: 36rpx;
-	font-weight: 700;
-	color: #111827;
-}
-
-.sub {
-	margin-top: 6rpx;
-	font-size: 24rpx;
-	color: #6b7280;
 }
 
 .card {
@@ -205,6 +316,10 @@ function goEditNickname() {
 	background: rgba(0, 0, 0, 0.03);
 }
 
+.item-disabled {
+	opacity: 0.88;
+}
+
 .right {
 	display: flex;
 	align-items: center;
@@ -218,6 +333,13 @@ function goEditNickname() {
 	font-size: 34rpx;
 	line-height: 1;
 	color: #c7c7cc; /* iOS 右箭头灰 */
+}
+
+.avatar-thumb {
+	width: 72rpx;
+	height: 72rpx;
+	border-radius: 36rpx;
+	background: #f0f0f0;
 }
 
 .tip {
