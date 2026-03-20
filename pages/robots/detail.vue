@@ -6,15 +6,17 @@
 					<view class="hero-header">
 						<view class="hero-main">
 							<text class="hero-caption">机器人主信息</text>
-							<text class="hero-code">{{ displayText(robotDetail?.robotCode) }}</text>
-							<text class="hero-model">{{ displayText(robotDetail?.model) }}</text>
+							<view class="hero-identity">
+								<text class="hero-code">{{ displayText(robotDetail?.robotCode) }}</text>
+								<text class="hero-model">{{ displayText(robotDetail?.model) }}</text>
+							</view>
 						</view>
 						<view class="status-badge" :class="robotDetail?.online ? 'is-online' : 'is-offline'">
 							{{ getOnlineStatusText(robotDetail?.online) }}
 						</view>
 					</view>
 					<view class="hero-meta">
-						<view class="hero-meta-item hero-meta-item-wide">
+						<view class="hero-meta-item">
 							<text class="meta-label">最后在线时间</text>
 							<text class="meta-value meta-value-time">{{ formatDisplayTime(robotDetail?.lastSeen) }}</text>
 						</view>
@@ -116,52 +118,58 @@
 
 				<view class="section">
 					<view class="section-title">设备控制</view>
-					<view class="panel-card">
+					<view class="panel-card control-panel-card">
 						<view class="control-head">
 							<text class="control-title">方向控制</text>
 							<text class="control-status">{{ robotDetail?.online ? '在线可控制' : '离线不可控制' }}</text>
 						</view>
 						<view class="direction-control">
-							<view class="direction-row">
-								<button
-									class="direction-btn"
-									:disabled="!robotDetail?.online"
-									@click="handleDirection('forward')"
-								>
-									前进
-								</button>
-							</view>
-							<view class="direction-row">
-								<button
-									class="direction-btn"
-									:disabled="!robotDetail?.online"
-									@click="handleDirection('left')"
-								>
-									左转
-								</button>
-								<button
-									class="direction-btn stop-btn"
-									:disabled="!robotDetail?.online"
-									@click="handleDirection('stop')"
-								>
-									停止
-								</button>
-								<button
-									class="direction-btn"
-									:disabled="!robotDetail?.online"
-									@click="handleDirection('right')"
-								>
-									右转
-								</button>
-							</view>
-							<view class="direction-row">
-								<button
-									class="direction-btn"
-									:disabled="!robotDetail?.online"
-									@click="handleDirection('backward')"
-								>
-									后退
-								</button>
+							<view class="direction-pad">
+								<view class="direction-row direction-row-top">
+									<button
+										class="direction-btn"
+										:disabled="!robotDetail?.online"
+										@click="handleDirection('forward')"
+									>
+										<text class="direction-icon">↑</text>
+										<text class="direction-label">前进</text>
+									</button>
+								</view>
+								<view class="direction-row direction-row-middle">
+									<button
+										class="direction-btn"
+										:disabled="!robotDetail?.online"
+										@click="handleDirection('left')"
+									>
+										<text class="direction-icon">←</text>
+										<text class="direction-label">左转</text>
+									</button>
+									<button
+										class="direction-btn stop-btn"
+										:disabled="!robotDetail?.online"
+										@click="handleDirection('stop')"
+									>
+										<text class="direction-stop-label">停止</text>
+									</button>
+									<button
+										class="direction-btn"
+										:disabled="!robotDetail?.online"
+										@click="handleDirection('right')"
+									>
+										<text class="direction-icon">→</text>
+										<text class="direction-label">右转</text>
+									</button>
+								</view>
+								<view class="direction-row direction-row-bottom">
+									<button
+										class="direction-btn"
+										:disabled="!robotDetail?.online"
+										@click="handleDirection('backward')"
+									>
+										<text class="direction-icon">↓</text>
+										<text class="direction-label">后退</text>
+									</button>
+								</view>
 							</view>
 						</view>
 					</view>
@@ -469,22 +477,22 @@ async function handleSendPosition() {
 }
 
 .page-content {
-	padding: 24rpx 24rpx 32rpx;
+	padding: 24rpx 24rpx 28rpx;
 }
 
 .section {
-	margin-top: 24rpx;
+	margin-top: 20rpx;
 }
 
 .section-last {
-	padding-bottom: 24rpx;
+	padding-bottom: 20rpx;
 }
 
 .section-title {
 	font-size: 30rpx;
 	font-weight: 600;
 	color: #1f2937;
-	margin-bottom: 16rpx;
+	margin-bottom: 12rpx;
 }
 
 button::after {
@@ -501,21 +509,22 @@ button::after {
 }
 
 .hero-card {
-	padding: 28rpx;
+	padding: 24rpx;
 }
 
 .hero-header {
 	display: flex;
 	justify-content: space-between;
-	align-items: flex-start;
-	gap: 24rpx;
+	align-items: center;
+	gap: 20rpx;
 }
 
 .hero-main {
 	display: flex;
 	flex-direction: column;
-	gap: 10rpx;
+	gap: 8rpx;
 	flex: 1;
+	min-width: 0;
 }
 
 .hero-caption {
@@ -523,16 +532,26 @@ button::after {
 	color: #6b7280;
 }
 
+.hero-identity {
+	display: flex;
+	align-items: baseline;
+	flex-wrap: wrap;
+	column-gap: 16rpx;
+	row-gap: 6rpx;
+}
+
 .hero-code {
-	font-size: 40rpx;
+	font-size: 38rpx;
 	font-weight: 600;
 	color: #111827;
-	line-height: 1.3;
+	line-height: 1.25;
 }
 
 .hero-model {
 	font-size: 26rpx;
 	color: #4b5563;
+	font-weight: 400;
+	line-height: 1.4;
 }
 
 .status-badge {
@@ -555,29 +574,25 @@ button::after {
 }
 
 .hero-meta {
-	margin-top: 28rpx;
-	padding-top: 24rpx;
+	margin-top: 20rpx;
+	padding-top: 20rpx;
 	border-top: 1rpx solid #f1f5f9;
 	display: grid;
 	grid-template-columns: repeat(2, minmax(0, 1fr));
-	gap: 20rpx;
+	gap: 12rpx;
 }
 
 .hero-meta-item {
-	padding: 20rpx;
+	padding: 18rpx 20rpx;
 	border-radius: 18rpx;
 	background-color: #f8fafc;
-}
-
-.hero-meta-item-wide {
-	grid-column: 1 / -1;
 }
 
 .meta-label {
 	display: block;
 	font-size: 24rpx;
 	color: #6b7280;
-	margin-bottom: 10rpx;
+	margin-bottom: 8rpx;
 }
 
 .meta-value {
@@ -589,27 +604,29 @@ button::after {
 }
 
 .meta-value-time {
-	font-size: 26rpx;
-	white-space: nowrap;
+	font-size: 24rpx;
+	white-space: normal;
 	word-break: normal;
+	line-height: 1.5;
 }
 
 .overview-grid {
 	display: grid;
 	grid-template-columns: repeat(2, minmax(0, 1fr));
-	gap: 16rpx;
+	gap: 12rpx;
 }
 
 .overview-card {
 	background-color: #ffffff;
 	border-radius: 20rpx;
 	border: 1rpx solid #e5e7eb;
-	padding: 24rpx;
-	min-height: 156rpx;
+	padding: 20rpx;
+	min-height: 132rpx;
 	display: flex;
 	flex-direction: column;
 	justify-content: space-between;
-	box-shadow: 0 6rpx 18rpx rgba(15, 23, 42, 0.03);
+	align-items: flex-start;
+	box-shadow: 0 4rpx 12rpx rgba(15, 23, 42, 0.03);
 }
 
 .overview-label {
@@ -619,10 +636,11 @@ button::after {
 }
 
 .overview-value {
+	margin-top: 12rpx;
 	font-size: 32rpx;
 	font-weight: 600;
 	color: #111827;
-	line-height: 1.35;
+	line-height: 1.25;
 	word-break: break-all;
 }
 
@@ -631,19 +649,20 @@ button::after {
 }
 
 .overview-location {
-	font-size: 26rpx;
+	font-size: 25rpx;
+	line-height: 1.4;
 }
 
 .panel-card {
-	padding: 28rpx;
+	padding: 24rpx;
 }
 
 .detail-row {
 	display: flex;
 	justify-content: space-between;
 	align-items: flex-start;
-	gap: 24rpx;
-	padding: 22rpx 0;
+	gap: 20rpx;
+	padding: 18rpx 0;
 	border-bottom: 1rpx solid #f1f5f9;
 }
 
@@ -660,7 +679,7 @@ button::after {
 .detail-value {
 	font-size: 28rpx;
 	color: #111827;
-	font-weight: 500;
+	font-weight: 400;
 	text-align: right;
 	flex: 1;
 	line-height: 1.45;
@@ -673,19 +692,21 @@ button::after {
 
 .text-online {
 	color: #047857;
+	font-weight: 500;
 }
 
 .text-offline {
 	color: #6b7280;
+	font-weight: 500;
 }
 
 .fault-summary {
 	display: flex;
 	justify-content: space-between;
 	align-items: center;
-	padding-bottom: 24rpx;
+	padding-bottom: 20rpx;
 	border-bottom: 1rpx solid #f1f5f9;
-	margin-bottom: 24rpx;
+	margin-bottom: 20rpx;
 }
 
 .fault-summary-label {
@@ -706,11 +727,11 @@ button::after {
 .fault-list {
 	display: flex;
 	flex-direction: column;
-	gap: 16rpx;
+	gap: 12rpx;
 }
 
 .fault-item {
-	padding: 22rpx;
+	padding: 20rpx;
 	background-color: #fffbeb;
 	border: 1rpx solid #fde68a;
 	border-radius: 18rpx;
@@ -768,7 +789,7 @@ button::after {
 	justify-content: space-between;
 	align-items: center;
 	gap: 20rpx;
-	margin-bottom: 24rpx;
+	margin-bottom: 20rpx;
 }
 
 .control-title {
@@ -784,63 +805,127 @@ button::after {
 	text-align: right;
 }
 
+.control-panel-card {
+	padding-top: 20rpx;
+	padding-bottom: 20rpx;
+}
+
+.control-panel-card .control-head {
+	margin-bottom: 14rpx;
+}
+
 .direction-control {
+	width: 100%;
 	display: flex;
 	flex-direction: column;
 	align-items: center;
-	gap: 16rpx;
+}
+
+.direction-pad {
+	width: 344rpx;
+	padding: 16rpx 16rpx 12rpx;
+	box-sizing: border-box;
+	border-radius: 28rpx;
+	background-color: #f8fafc;
+	border: 1rpx solid #e5e7eb;
+	display: flex;
+	flex-direction: column;
+	align-items: center;
+	gap: 8rpx;
 }
 
 .direction-row {
 	display: flex;
 	justify-content: center;
 	align-items: center;
-	gap: 16rpx;
+	width: 100%;
+	gap: 8rpx;
+}
+
+.direction-row-top,
+.direction-row-bottom {
+	justify-content: center;
+}
+
+.direction-row-middle {
+	justify-content: center;
 }
 
 .direction-btn {
-	width: 156rpx;
-	height: 84rpx;
-	line-height: 84rpx;
-	background-color: #334155;
-	color: #ffffff;
-	border: none;
-	border-radius: 16rpx;
-	font-size: 28rpx;
-	font-weight: 500;
+	width: 92rpx;
+	height: 92rpx;
+	line-height: 1;
+	background-color: #ffffff;
+	color: #475569;
+	border: 1rpx solid #d7dee7;
+	border-radius: 18rpx;
+	font-size: 24rpx;
+	font-weight: 400;
 	padding: 0;
+	display: flex;
+	flex-direction: column;
+	align-items: center;
+	justify-content: center;
+	gap: 6rpx;
+	box-shadow: 0 1rpx 4rpx rgba(15, 23, 42, 0.03);
+	box-sizing: border-box;
 }
 
 .direction-btn:not([disabled]):active {
-	background-color: #1f2937;
-	transform: scale(0.98);
+	background-color: #f9fafb;
+	border-color: #cbd5e1;
+	transform: scale(0.97);
 }
 
 .direction-btn[disabled] {
-	background-color: #e5e7eb;
+	background-color: #f3f4f6;
 	color: #9ca3af;
+	border-color: #e5e7eb;
 	opacity: 1;
+	box-shadow: none;
+}
+
+.direction-icon {
+	font-size: 24rpx;
+	line-height: 1;
+	color: currentColor;
+}
+
+.direction-label {
+	font-size: 22rpx;
+	line-height: 1;
+	color: currentColor;
 }
 
 .stop-btn {
-	background-color: #475569;
+	background-color: #e2e8f0;
+	color: #1f2937;
+	border-color: #cbd5e1;
+	font-weight: 500;
 }
 
 .stop-btn:not([disabled]):active {
-	background-color: #334155;
+	background-color: #cfd8e3;
+	border-color: #b8c4d3;
+}
+
+.direction-stop-label {
+	font-size: 24rpx;
+	line-height: 1;
+	color: currentColor;
 }
 
 .position-input-group {
 	display: flex;
 	flex-direction: column;
-	gap: 20rpx;
+	gap: 16rpx;
 }
 
 .input-item {
 	display: flex;
 	align-items: center;
 	gap: 16rpx;
-	padding: 20rpx 0;
+	padding: 16rpx 0;
 	border-bottom: 1rpx solid #f1f5f9;
 }
 
@@ -879,7 +964,7 @@ button::after {
 	border-radius: 16rpx;
 	font-size: 30rpx;
 	font-weight: 500;
-	margin-top: 12rpx;
+	margin-top: 8rpx;
 }
 
 .send-btn:not([disabled]):active {
@@ -894,7 +979,7 @@ button::after {
 }
 
 .map-card {
-	padding: 28rpx;
+	padding: 24rpx;
 }
 
 .map-title {
