@@ -16,6 +16,50 @@ function fail(errMsg, errCode = 1, data = {}) {
 	return { errCode, errMsg, ...data }
 }
 
+function asNumberOrNull(value) {
+	if (value === null || value === undefined || value === '') return null
+	const num = Number(value)
+	return Number.isNaN(num) ? null : num
+}
+
+function asText(value) {
+	if (value === null || value === undefined) return ''
+	return String(value).trim()
+}
+
+function formatLocationText(x, y) {
+	if (x === null && y === null) return '暂无数据'
+	return `X: ${x === null ? '-' : x}, Y: ${y === null ? '-' : y}`
+}
+
+function normalizeTelemetryLatest(rawTelemetry) {
+	const raw = rawTelemetry && typeof rawTelemetry === 'object' ? rawTelemetry : null
+	const robotCode = asText(raw?.robotCode)
+	const vehicleBattery = asNumberOrNull(raw?.vehicleBattery)
+	const packBattery = asNumberOrNull(raw?.packBattery)
+	const x = null
+	const y = null
+	const isOnline = false
+	const lastOnlineTime = asText(raw?.lastSeen || raw?.updateTime || raw?.ts)
+
+	return {
+		robotCode,
+		isOnline,
+		onlineStatusText: isOnline ? '在线' : '离线',
+		vehicleBattery,
+		packBattery,
+		x,
+		y,
+		locationText: formatLocationText(x, y),
+		faultCount: 0,
+		lastOnlineTime,
+		taskStatus: '',
+		rawTelemetry: raw ? { ...raw } : null,
+		// 向后兼容当前前端已有取值方式
+		lastSeen: lastOnlineTime
+	}
+}
+
 module.exports = {
 	/**
 	 * 通用预处理器：统一鉴权
@@ -182,13 +226,20 @@ module.exports = {
 			.map((code) => {
 				const robot = robotMap[code]
 				if (!robot) return null
+				const faultCount = faultCountMap[code] || 0
+				const normalizedTelemetry = normalizeTelemetryLatest(telemetryMap[code])
 				return {
 					robotCode: robot.robotCode,
 					model: robot.model,
 					online: robot.online,
 					location: robot.location,
-					telemetry_latest: telemetryMap[code] || null,
-					faultCount: faultCountMap[code] || 0
+					telemetry_latest: {
+						...normalizedTelemetry,
+						robotCode: normalizedTelemetry.robotCode || robot.robotCode,
+						isOnline: !!robot.online,
+						onlineStatusText: robot.online ? '在线' : '离线'
+					},
+					faultCount
 				}
 			})
 			.filter(Boolean)
@@ -238,10 +289,16 @@ module.exports = {
 			.orderBy('ts', 'desc')
 			.limit(20)
 			.get()
+		const normalizedTelemetry = normalizeTelemetryLatest(telemetry_latest)
 
 		return {
 			robot,
-			telemetry_latest,
+			telemetry_latest: {
+				...normalizedTelemetry,
+				robotCode: normalizedTelemetry.robotCode || robot.robotCode,
+				isOnline: !!robot.online,
+				onlineStatusText: robot.online ? '在线' : '离线'
+			},
 			faults: faultsRes.data || []
 		}
 	},

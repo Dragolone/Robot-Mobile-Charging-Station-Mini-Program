@@ -25,6 +25,52 @@ function fail(code, message) {
   }
 }
 
+function asNumberOrNull(value) {
+  if (value === null || value === undefined || value === '') return null
+  const num = Number(value)
+  return Number.isNaN(num) ? null : num
+}
+
+function asText(value) {
+  if (value === null || value === undefined) return ''
+  return String(value).trim()
+}
+
+function formatLocationText(x, y) {
+  if (x === null && y === null) return ''
+  return `X: ${x === null ? '-' : x}, Y: ${y === null ? '-' : y}`
+}
+
+function normalizeTelemetryLatest(rawTelemetry, options = {}) {
+  const raw = rawTelemetry && typeof rawTelemetry === 'object' ? rawTelemetry : null
+  const robotCode = asText(options.robotCode || raw?.robotCode)
+  const isOnline = !!options.isOnline
+  const vehicleBattery = asNumberOrNull(raw?.vehicleBattery)
+  const packBattery = asNumberOrNull(raw?.packBattery)
+  const x = asNumberOrNull(raw?.x ?? raw?.location?.x)
+  const y = asNumberOrNull(raw?.y ?? raw?.location?.y)
+  const lastOnlineTime = asText(raw?.lastSeen || raw?.ts || raw?.updateTime || raw?.createTime)
+  const faultCount = asNumberOrNull(options.faultCount)
+
+  return {
+    robotCode,
+    isOnline,
+    onlineStatusText: isOnline ? '在线' : '离线',
+    vehicleBattery,
+    packBattery,
+    x,
+    y,
+    locationText: formatLocationText(x, y),
+    faultCount: faultCount === null ? 0 : faultCount,
+    lastOnlineTime,
+    taskStatus: '',
+    rawTelemetry: raw ? { ...raw } : null,
+    // 向后兼容当前前端已有取值方式
+    lastSeen: lastOnlineTime,
+    location: x === null && y === null ? null : { x, y }
+  }
+}
+
 async function getRobotByCode(robotCode) {
   const res = await db.collection('robots').where({ robotCode }).limit(1).get()
   if (!res.data || res.data.length === 0) {
@@ -91,10 +137,15 @@ async function handleRobotList() {
   })
 
   const list = robots.map(r => {
+    const faultCount = faultCountMap[r.robotCode] || 0
     return {
       robot: r,
-      telemetry: telemetryMap[r.robotCode] || null,
-      faultCount: faultCountMap[r.robotCode] || 0
+      telemetry: normalizeTelemetryLatest(telemetryMap[r.robotCode], {
+        robotCode: r.robotCode,
+        isOnline: r.online,
+        faultCount
+      }),
+      faultCount
     }
   })
 
@@ -132,7 +183,10 @@ async function handleRobotDetail(event) {
 
   return success({
     robot,
-    telemetry,
+    telemetry: normalizeTelemetryLatest(telemetry, {
+      robotCode: robot.robotCode,
+      isOnline: robot.online
+    }),
     faults: faultsRes.data || []
   })
 }
