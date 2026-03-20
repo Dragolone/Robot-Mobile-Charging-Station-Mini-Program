@@ -23,9 +23,9 @@
 
 		<view class="action-area">
 			<button
-				class="save-button"
+				class="save-button pressable-button"
 				:disabled="saving"
-				hover-class="save-button-hover"
+				hover-class="pressable-button-hover"
 				@tap="save"
 			>
 				{{ saving ? '保存中…' : '保存' }}
@@ -115,6 +115,7 @@ async function save() {
 </script>
 
 <style scoped>
+@import '@/styles/pressable.css';
 .page {
 	padding: 24rpx;
 	background: #f6f7fb;
@@ -180,10 +181,6 @@ async function save() {
 	font-size: 30rpx;
 	font-weight: 600;
 	box-shadow: 0 10rpx 20rpx rgba(91, 143, 249, 0.18);
-}
-
-.save-button-hover {
-	opacity: 0.92;
 }
 
 .save-button[disabled] {

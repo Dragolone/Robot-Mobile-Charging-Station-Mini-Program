@@ -2,12 +2,18 @@
 	<view class="container">
 		<view v-if="robotList.length === 0" class="empty">
 			<text class="empty-text">暂无已绑定机器人</text>
+			<text class="empty-subtext">点击下方按钮绑定你的第一台机器人</text>
+			<view class="bind-entry-card pressable-surface empty-bind-entry" hover-class="pressable-surface-hover" @tap="openBindRobotSheet">
+				<text class="bind-entry-icon">+</text>
+				<text class="bind-entry-text">添加机器人</text>
+			</view>
 		</view>
 		<view class="robot-list">
 			<view 
 				v-for="robot in robotList" 
 				:key="robot.robotCode" 
-				class="robot-card"
+				class="robot-card pressable-surface"
+				hover-class="pressable-surface-hover"
 				@click="goToDetail(robot.robotCode)"
 			>
 				<view class="card-header">
@@ -46,7 +52,23 @@
 					</view>
 				</view>
 			</view>
+
+			<view
+				v-if="robotList.length > 0"
+				class="bind-entry-card pressable-surface"
+				hover-class="pressable-surface-hover"
+				@tap="openBindRobotSheet"
+			>
+				<text class="bind-entry-icon">+</text>
+				<text class="bind-entry-text">添加机器人</text>
+			</view>
 		</view>
+
+		<BindRobotSheet
+			:visible="bindSheetVisible"
+			@close="closeBindRobotSheet"
+			@success="handleBindSuccess"
+		/>
 	</view>
 </template>
 
@@ -55,8 +77,10 @@ import { ref, onMounted, onBeforeUnmount } from 'vue'
 import { onShow } from '@dcloudio/uni-app'
 import { formatBattery } from '@/utils/format.js'
 import { ensureLoginForCurrentPage } from '@/utils/auth.js'
+import BindRobotSheet from '@/components/BindRobotSheet.vue'
 
 const robotList = ref([])
+const bindSheetVisible = ref(false)
 const userService = uniCloud.importObject('userService', {
 	customUI: true,
 	errorOptions: { type: 'toast' }
@@ -108,9 +132,24 @@ function goToDetail(robotCode) {
 function onRobotBound() {
 	loadRobotList()
 }
+
+function openBindRobotSheet() {
+	if (!ensureLoginForCurrentPage()) return
+	bindSheetVisible.value = true
+}
+
+function closeBindRobotSheet() {
+	bindSheetVisible.value = false
+}
+
+function handleBindSuccess() {
+	closeBindRobotSheet()
+	loadRobotList()
+}
 </script>
 
 <style scoped>
+@import '@/styles/pressable.css';
 .container {
 	min-height: 100vh;
 	background-color: #f5f5f5;
@@ -120,12 +159,20 @@ function onRobotBound() {
 .empty {
 	padding: 40rpx 20rpx 20rpx;
 	display: flex;
+	flex-direction: column;
+	align-items: center;
 	justify-content: center;
 }
 
 .empty-text {
 	color: #6b7280;
 	font-size: 28rpx;
+}
+
+.empty-subtext {
+	margin-top: 12rpx;
+	color: #9ca3af;
+	font-size: 24rpx;
 }
 
 .robot-list {
@@ -215,5 +262,36 @@ function onRobotBound() {
 
 .value.fault.has-fault {
 	color: #f44336;
+}
+
+.bind-entry-card {
+	display: flex;
+	align-items: center;
+	justify-content: center;
+	gap: 12rpx;
+	padding: 28rpx 24rpx;
+	background-color: #ffffff;
+	border-radius: 16rpx;
+	border: 2rpx dashed #d7dbe2;
+	color: #4b5563;
+	box-shadow: 0 2rpx 10rpx rgba(15, 23, 42, 0.04);
+}
+
+.empty-bind-entry {
+	width: 100%;
+	margin-top: 28rpx;
+}
+
+.bind-entry-icon {
+	font-size: 34rpx;
+	font-weight: 500;
+	line-height: 1;
+	color: #6b7280;
+}
+
+.bind-entry-text {
+	font-size: 28rpx;
+	font-weight: 500;
+	color: #374151;
 }
 </style>
