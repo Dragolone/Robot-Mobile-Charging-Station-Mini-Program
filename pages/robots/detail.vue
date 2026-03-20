@@ -1,165 +1,222 @@
 <template>
 	<view class="container">
 		<scroll-view scroll-y class="scroll-content">
-			<!-- 数据展示区域 -->
-			<view class="section">
-				<view class="section-title">设备信息</view>
-				
-				<!-- 电量卡片 -->
-				<view class="battery-card">
-					<view class="battery-item">
-						<text class="battery-label">车体电量</text>
-						<text class="battery-value">{{ formatBattery(robotDetail?.vehicleBattery) }}%</text>
+			<view class="page-content">
+				<view class="hero-card">
+					<view class="hero-header">
+						<view class="hero-main">
+							<text class="hero-caption">机器人主信息</text>
+							<text class="hero-code">{{ displayText(robotDetail?.robotCode) }}</text>
+							<text class="hero-model">{{ displayText(robotDetail?.model) }}</text>
+						</view>
+						<view class="status-badge" :class="robotDetail?.online ? 'is-online' : 'is-offline'">
+							{{ getOnlineStatusText(robotDetail?.online) }}
+						</view>
 					</view>
-					<view class="battery-divider"></view>
-					<view class="battery-item">
-						<text class="battery-label">电池包电量</text>
-						<text class="battery-value">{{ formatBattery(robotDetail?.packBattery) }}%</text>
-					</view>
-				</view>
-				
-				<!-- 基本信息卡片 -->
-				<view class="info-card">
-					<view class="info-item">
-						<text class="info-label">设备编号</text>
-						<text class="info-value">{{ robotDetail?.robotCode || '-' }}</text>
-					</view>
-					<view class="info-item">
-						<text class="info-label">型号</text>
-						<text class="info-value">{{ robotDetail?.model || '-' }}</text>
-					</view>
-					<view class="info-item">
-						<text class="info-label">联网状态</text>
-						<text class="info-value" :class="{ online: robotDetail?.online, offline: !robotDetail?.online }">
-							{{ robotDetail?.online ? '在线' : '离线' }}
-						</text>
-					</view>
-					<view class="info-item">
-						<text class="info-label">位置</text>
-						<text class="info-value">
-							X: {{ robotDetail?.location?.x || '-' }}, Y: {{ robotDetail?.location?.y || '-' }}
-						</text>
-					</view>
-				</view>
-				
-				<!-- 模型图片占位 -->
-				<view class="model-image-card">
-					<view class="model-placeholder">
-						<text class="placeholder-text">模型图片</text>
-						<text class="placeholder-desc">{{ robotDetail?.model || '-' }}</text>
-					</view>
-				</view>
-				
-				<!-- 故障列表 -->
-				<view class="fault-card" v-if="faults && faults.length > 0">
-					<view class="fault-header">
-						<text class="fault-title">故障列表 ({{ faults.length }})</text>
-					</view>
-					<view class="fault-list">
-						<view 
-							v-for="(fault, index) in faults" 
-							:key="index" 
-							class="fault-item"
-						>
-							<view class="fault-code">{{ fault.code }}</view>
-							<view class="fault-message">{{ fault.message }}</view>
-							<view class="fault-time">{{ fault.time }}</view>
+					<view class="hero-meta">
+						<view class="hero-meta-item hero-meta-item-wide">
+							<text class="meta-label">最后在线时间</text>
+							<text class="meta-value meta-value-time">{{ formatDisplayTime(robotDetail?.lastSeen) }}</text>
+						</view>
+						<view class="hero-meta-item">
+							<text class="meta-label">当前任务状态</text>
+							<text class="meta-value">{{ getTaskStatusText() }}</text>
 						</view>
 					</view>
 				</view>
-			</view>
-			
-			<!-- 控制区域 -->
-			<view class="section">
-				<view class="section-title">设备控制</view>
-				
-				<!-- 方向控制 -->
-				<view class="control-card">
-					<view class="control-title">方向控制</view>
-					<view class="direction-control">
-						<view class="direction-row">
-							<button 
-								class="direction-btn" 
-								:disabled="!robotDetail?.online"
-								@click="handleDirection('forward')"
+
+				<view class="section">
+					<view class="section-title">状态概览</view>
+					<view class="overview-grid">
+						<view class="overview-card">
+							<text class="overview-label">车体电量</text>
+							<text class="overview-value">{{ displayBattery(robotDetail?.vehicleBattery) }}</text>
+						</view>
+						<view class="overview-card">
+							<text class="overview-label">电池包电量</text>
+							<text class="overview-value">{{ displayBattery(robotDetail?.packBattery) }}</text>
+						</view>
+						<view class="overview-card">
+							<text class="overview-label">故障数量</text>
+							<text class="overview-value" :class="{ 'has-fault': faults.length > 0 }">
+								{{ getFaultCountText() }}
+							</text>
+						</view>
+						<view class="overview-card">
+							<text class="overview-label">当前坐标</text>
+							<text class="overview-value overview-location">{{ formatLocation(robotDetail?.location) }}</text>
+						</view>
+					</view>
+				</view>
+
+				<view class="section">
+					<view class="section-title">设备信息明细</view>
+					<view class="panel-card">
+						<view class="detail-row">
+							<text class="detail-label">设备编号</text>
+							<text class="detail-value">{{ displayText(robotDetail?.robotCode) }}</text>
+						</view>
+						<view class="detail-row">
+							<text class="detail-label">型号</text>
+							<text class="detail-value">{{ displayText(robotDetail?.model) }}</text>
+						</view>
+						<view class="detail-row">
+							<text class="detail-label">联网状态</text>
+							<text class="detail-value" :class="robotDetail?.online ? 'text-online' : 'text-offline'">
+								{{ getOnlineStatusText(robotDetail?.online) }}
+							</text>
+						</view>
+						<view class="detail-row">
+							<text class="detail-label">最后在线时间</text>
+							<text class="detail-value">{{ formatDisplayTime(robotDetail?.lastSeen) }}</text>
+						</view>
+						<view class="detail-row">
+							<text class="detail-label">车体电量</text>
+							<text class="detail-value">{{ displayBattery(robotDetail?.vehicleBattery) }}</text>
+						</view>
+						<view class="detail-row">
+							<text class="detail-label">电池包电量</text>
+							<text class="detail-value">{{ displayBattery(robotDetail?.packBattery) }}</text>
+						</view>
+						<view class="detail-row">
+							<text class="detail-label">当前位置</text>
+							<text class="detail-value location-text">{{ formatLocation(robotDetail?.location) }}</text>
+						</view>
+					</view>
+				</view>
+
+				<view class="section">
+					<view class="section-title">故障信息</view>
+					<view class="panel-card">
+						<view class="fault-summary">
+							<text class="fault-summary-label">当前故障数量</text>
+							<text class="fault-summary-value" :class="{ 'has-fault': faults.length > 0 }">
+								{{ getFaultCountText() }}
+							</text>
+						</view>
+						<view v-if="faults.length > 0" class="fault-list">
+							<view
+								v-for="(fault, index) in faults"
+								:key="index"
+								class="fault-item"
 							>
-								前进
+								<view class="fault-item-header">
+									<text class="fault-code">{{ displayText(fault.code) }}</text>
+									<text class="fault-time">{{ formatDisplayTime(fault.time || fault.ts) }}</text>
+								</view>
+								<view class="fault-message">{{ displayText(fault.message) }}</view>
+							</view>
+						</view>
+						<view v-else class="empty-state">
+							<text class="empty-state-title">暂无数据</text>
+							<text class="empty-state-desc">当前没有可展示的故障信息</text>
+						</view>
+					</view>
+				</view>
+
+				<view class="section">
+					<view class="section-title">设备控制</view>
+					<view class="panel-card">
+						<view class="control-head">
+							<text class="control-title">方向控制</text>
+							<text class="control-status">{{ robotDetail?.online ? '在线可控制' : '离线不可控制' }}</text>
+						</view>
+						<view class="direction-control">
+							<view class="direction-row">
+								<button
+									class="direction-btn"
+									:disabled="!robotDetail?.online"
+									@click="handleDirection('forward')"
+								>
+									前进
+								</button>
+							</view>
+							<view class="direction-row">
+								<button
+									class="direction-btn"
+									:disabled="!robotDetail?.online"
+									@click="handleDirection('left')"
+								>
+									左转
+								</button>
+								<button
+									class="direction-btn stop-btn"
+									:disabled="!robotDetail?.online"
+									@click="handleDirection('stop')"
+								>
+									停止
+								</button>
+								<button
+									class="direction-btn"
+									:disabled="!robotDetail?.online"
+									@click="handleDirection('right')"
+								>
+									右转
+								</button>
+							</view>
+							<view class="direction-row">
+								<button
+									class="direction-btn"
+									:disabled="!robotDetail?.online"
+									@click="handleDirection('backward')"
+								>
+									后退
+								</button>
+							</view>
+						</view>
+					</view>
+				</view>
+
+				<view class="section">
+					<view class="section-title">发送点位</view>
+					<view class="panel-card">
+						<view class="send-position-head">
+							<text class="control-title">目标点位</text>
+							<text class="control-status">{{ robotDetail?.online ? '在线可发送' : '离线不可发送' }}</text>
+						</view>
+						<view class="position-input-group">
+							<view class="input-item">
+								<text class="input-label">X坐标</text>
+								<input
+									class="input-field"
+									type="digit"
+									v-model="positionX"
+									placeholder="请输入X坐标"
+									:disabled="!robotDetail?.online"
+								/>
+							</view>
+							<view class="input-item">
+								<text class="input-label">Y坐标</text>
+								<input
+									class="input-field"
+									type="digit"
+									v-model="positionY"
+									placeholder="请输入Y坐标"
+									:disabled="!robotDetail?.online"
+								/>
+							</view>
+							<button
+								class="send-btn"
+								:disabled="!robotDetail?.online"
+								@click="handleSendPosition"
+							>
+								发送点位
 							</button>
 						</view>
-						<view class="direction-row">
-							<button 
-								class="direction-btn" 
-								:disabled="!robotDetail?.online"
-								@click="handleDirection('left')"
-							>
-								左转
-							</button>
-							<button 
-								class="direction-btn stop-btn" 
-								:disabled="!robotDetail?.online"
-								@click="handleDirection('stop')"
-							>
-								停止
-							</button>
-							<button 
-								class="direction-btn" 
-								:disabled="!robotDetail?.online"
-								@click="handleDirection('right')"
-							>
-								右转
-							</button>
-						</view>
-						<view class="direction-row">
-							<button 
-								class="direction-btn" 
-								:disabled="!robotDetail?.online"
-								@click="handleDirection('backward')"
-							>
-								后退
-							</button>
-						</view>
 					</view>
 				</view>
-				
-				<!-- 发送点位 -->
-				<view class="control-card">
-					<view class="control-title">发送点位</view>
-					<view class="position-input-group">
-						<view class="input-item">
-							<text class="input-label">X坐标：</text>
-							<input 
-								class="input-field" 
-								type="digit" 
-								v-model="positionX" 
-								placeholder="请输入X坐标"
-								:disabled="!robotDetail?.online"
-							/>
+
+				<view class="section section-last">
+					<view class="section-title">位置示意</view>
+					<view class="map-card">
+						<view class="map-head">
+							<text class="map-title">当前位置</text>
+							<text class="map-subtitle">{{ formatLocation(robotDetail?.location) }}</text>
 						</view>
-						<view class="input-item">
-							<text class="input-label">Y坐标：</text>
-							<input 
-								class="input-field" 
-								type="digit" 
-								v-model="positionY" 
-								placeholder="请输入Y坐标"
-								:disabled="!robotDetail?.online"
-							/>
+						<view class="map-placeholder">
+							<text class="map-placeholder-title">位置示意</text>
+							<text class="map-placeholder-desc">用于展示机器人当前位置信息，当前坐标：{{ formatLocation(robotDetail?.location) }}</text>
 						</view>
-						<button 
-							class="send-btn" 
-							:disabled="!robotDetail?.online"
-							@click="handleSendPosition"
-						>
-							发送点位
-						</button>
-					</view>
-				</view>
-				
-				<!-- 地图展示占位 -->
-				<view class="map-card">
-					<view class="map-placeholder">
-						<text class="placeholder-text">地图展示</text>
-						<text class="placeholder-desc">当前位置：X {{ robotDetail?.location?.x || '-' }}, Y {{ robotDetail?.location?.y || '-' }}</text>
 					</view>
 				</view>
 			</view>
@@ -179,6 +236,8 @@ const robotDetail = ref(null)
 const positionX = ref('')
 const positionY = ref('')
 const faults = ref([])
+
+const EMPTY_TEXT = '暂无数据'
 
 const userService = uniCloud.importObject('userService', {
 	customUI: true,
@@ -215,6 +274,110 @@ async function loadRobotDetail() {
 		robotDetail.value = null
 		faults.value = []
 	}
+}
+
+function hasDisplayValue(value) {
+	if (value === null || value === undefined) return false
+	if (typeof value === 'number') return !Number.isNaN(value)
+	return String(value).trim() !== ''
+}
+
+function displayText(value, fallback = EMPTY_TEXT) {
+	if (!hasDisplayValue(value)) return fallback
+	return String(value)
+}
+
+function displayBattery(value) {
+	if (!hasDisplayValue(value)) return EMPTY_TEXT
+	return `${formatBattery(value)}%`
+}
+
+function formatDisplayTime(value) {
+	if (!hasDisplayValue(value)) return EMPTY_TEXT
+
+	let date = null
+
+	if (value instanceof Date) {
+		date = value
+	} else if (typeof value === 'number') {
+		const timestamp = String(value).length === 10 ? value * 1000 : value
+		date = new Date(timestamp)
+	} else {
+		const rawValue = String(value).trim()
+		if (!rawValue) return EMPTY_TEXT
+
+		if (/^\d{10,13}$/.test(rawValue)) {
+			const timestamp = rawValue.length === 10 ? Number(rawValue) * 1000 : Number(rawValue)
+			date = new Date(timestamp)
+		} else {
+			const matched = rawValue.match(
+				/^(\d{4})[-/.](\d{1,2})[-/.](\d{1,2})(?:[ T](\d{1,2}):(\d{1,2})(?::(\d{1,2}))?)?$/
+			)
+
+			if (matched) {
+				const [, year, month, day, hour = '0', minute = '0', second = '0'] = matched
+				date = new Date(
+					Number(year),
+					Number(month) - 1,
+					Number(day),
+					Number(hour),
+					Number(minute),
+					Number(second)
+				)
+			} else {
+				const normalizedValue = rawValue.replace(/-/g, '/').replace('T', ' ')
+				date = new Date(normalizedValue)
+			}
+		}
+	}
+
+	if (!(date instanceof Date) || Number.isNaN(date.getTime())) {
+		return EMPTY_TEXT
+	}
+
+	const year = date.getFullYear()
+	const month = `${date.getMonth() + 1}`.padStart(2, '0')
+	const day = `${date.getDate()}`.padStart(2, '0')
+	const hour = `${date.getHours()}`.padStart(2, '0')
+	const minute = `${date.getMinutes()}`.padStart(2, '0')
+	const second = `${date.getSeconds()}`.padStart(2, '0')
+
+	return `${year}-${month}-${day} ${hour}:${minute}:${second}`
+}
+
+function formatCoordinate(value) {
+	if (!hasDisplayValue(value)) return EMPTY_TEXT
+
+	const numericValue = Number(value)
+	if (Number.isNaN(numericValue)) {
+		return String(value)
+	}
+
+	const fixedValue = numericValue.toFixed(2).replace(/\.?0+$/, '')
+	return fixedValue || '0'
+}
+
+function formatLocation(location) {
+	const x = formatCoordinate(location?.x)
+	const y = formatCoordinate(location?.y)
+
+	if (x === EMPTY_TEXT && y === EMPTY_TEXT) {
+		return EMPTY_TEXT
+	}
+
+	return `X: ${x} / Y: ${y}`
+}
+
+function getOnlineStatusText(online) {
+	return online ? '在线' : '离线'
+}
+
+function getTaskStatusText() {
+	return EMPTY_TEXT
+}
+
+function getFaultCountText() {
+	return String((faults.value && faults.value.length) || 0)
 }
 
 async function handleDirection(direction) {
@@ -298,151 +461,246 @@ async function handleSendPosition() {
 <style scoped>
 .container {
 	height: 100vh;
-	background-color: #f5f5f5;
+	background-color: #f3f4f6;
 }
 
 .scroll-content {
 	height: 100%;
 }
 
+.page-content {
+	padding: 24rpx 24rpx 32rpx;
+}
+
 .section {
-	padding: 20rpx;
+	margin-top: 24rpx;
+}
+
+.section-last {
+	padding-bottom: 24rpx;
 }
 
 .section-title {
-	font-size: 32rpx;
+	font-size: 30rpx;
 	font-weight: 600;
-	color: #333333;
-	margin-bottom: 20rpx;
+	color: #1f2937;
+	margin-bottom: 16rpx;
 }
 
-/* 电量卡片 */
-.battery-card {
+button::after {
+	border: none;
+}
+
+.hero-card,
+.panel-card,
+.map-card {
 	background-color: #ffffff;
-	border-radius: 16rpx;
-	padding: 30rpx;
-	margin-bottom: 20rpx;
-	display: flex;
-	align-items: center;
-	justify-content: space-around;
-	box-shadow: 0 2rpx 12rpx rgba(0, 0, 0, 0.08);
+	border-radius: 24rpx;
+	border: 1rpx solid #e5e7eb;
+	box-shadow: 0 8rpx 24rpx rgba(15, 23, 42, 0.04);
 }
 
-.battery-item {
+.hero-card {
+	padding: 28rpx;
+}
+
+.hero-header {
+	display: flex;
+	justify-content: space-between;
+	align-items: flex-start;
+	gap: 24rpx;
+}
+
+.hero-main {
 	display: flex;
 	flex-direction: column;
-	align-items: center;
+	gap: 10rpx;
 	flex: 1;
 }
 
-.battery-divider {
-	width: 1rpx;
-	height: 80rpx;
-	background-color: #e0e0e0;
+.hero-caption {
+	font-size: 24rpx;
+	color: #6b7280;
 }
 
-.battery-label {
-	font-size: 26rpx;
-	color: #666666;
-	margin-bottom: 12rpx;
-}
-
-.battery-value {
-	font-size: 48rpx;
+.hero-code {
+	font-size: 40rpx;
 	font-weight: 600;
-	color: #2196f3;
-	font-family: 'Courier New', monospace;
-	letter-spacing: 2rpx;
+	color: #111827;
+	line-height: 1.3;
 }
 
-/* 信息卡片 */
-.info-card {
+.hero-model {
+	font-size: 26rpx;
+	color: #4b5563;
+}
+
+.status-badge {
+	padding: 10rpx 20rpx;
+	border-radius: 999rpx;
+	font-size: 24rpx;
+	font-weight: 600;
+	line-height: 1.2;
+	white-space: nowrap;
+}
+
+.status-badge.is-online {
+	background-color: #ecfdf3;
+	color: #047857;
+}
+
+.status-badge.is-offline {
+	background-color: #f3f4f6;
+	color: #6b7280;
+}
+
+.hero-meta {
+	margin-top: 28rpx;
+	padding-top: 24rpx;
+	border-top: 1rpx solid #f1f5f9;
+	display: grid;
+	grid-template-columns: repeat(2, minmax(0, 1fr));
+	gap: 20rpx;
+}
+
+.hero-meta-item {
+	padding: 20rpx;
+	border-radius: 18rpx;
+	background-color: #f8fafc;
+}
+
+.hero-meta-item-wide {
+	grid-column: 1 / -1;
+}
+
+.meta-label {
+	display: block;
+	font-size: 24rpx;
+	color: #6b7280;
+	margin-bottom: 10rpx;
+}
+
+.meta-value {
+	font-size: 28rpx;
+	color: #111827;
+	font-weight: 500;
+	line-height: 1.4;
+	word-break: break-all;
+}
+
+.meta-value-time {
+	font-size: 26rpx;
+	white-space: nowrap;
+	word-break: normal;
+}
+
+.overview-grid {
+	display: grid;
+	grid-template-columns: repeat(2, minmax(0, 1fr));
+	gap: 16rpx;
+}
+
+.overview-card {
 	background-color: #ffffff;
-	border-radius: 16rpx;
-	padding: 30rpx;
-	margin-bottom: 20rpx;
-	box-shadow: 0 2rpx 12rpx rgba(0, 0, 0, 0.08);
+	border-radius: 20rpx;
+	border: 1rpx solid #e5e7eb;
+	padding: 24rpx;
+	min-height: 156rpx;
+	display: flex;
+	flex-direction: column;
+	justify-content: space-between;
+	box-shadow: 0 6rpx 18rpx rgba(15, 23, 42, 0.03);
 }
 
-.info-item {
+.overview-label {
+	font-size: 24rpx;
+	color: #6b7280;
+	line-height: 1.4;
+}
+
+.overview-value {
+	font-size: 32rpx;
+	font-weight: 600;
+	color: #111827;
+	line-height: 1.35;
+	word-break: break-all;
+}
+
+.overview-value.has-fault {
+	color: #b45309;
+}
+
+.overview-location {
+	font-size: 26rpx;
+}
+
+.panel-card {
+	padding: 28rpx;
+}
+
+.detail-row {
 	display: flex;
 	justify-content: space-between;
-	align-items: center;
-	padding: 20rpx 0;
-	border-bottom: 1rpx solid #f0f0f0;
+	align-items: flex-start;
+	gap: 24rpx;
+	padding: 22rpx 0;
+	border-bottom: 1rpx solid #f1f5f9;
 }
 
-.info-item:last-child {
+.detail-row:last-child {
 	border-bottom: none;
 }
 
-.info-label {
+.detail-label {
 	font-size: 28rpx;
-	color: #666666;
+	color: #6b7280;
+	min-width: 160rpx;
 }
 
-.info-value {
+.detail-value {
 	font-size: 28rpx;
-	color: #333333;
+	color: #111827;
 	font-weight: 500;
+	text-align: right;
+	flex: 1;
+	line-height: 1.45;
+	word-break: break-all;
 }
 
-.info-value.online {
-	color: #4caf50;
+.location-text {
+	color: #374151;
 }
 
-.info-value.offline {
-	color: #f44336;
+.text-online {
+	color: #047857;
 }
 
-/* 模型图片占位 */
-.model-image-card {
-	background-color: #ffffff;
-	border-radius: 16rpx;
-	margin-bottom: 20rpx;
-	box-shadow: 0 2rpx 12rpx rgba(0, 0, 0, 0.08);
-	overflow: hidden;
+.text-offline {
+	color: #6b7280;
 }
 
-.model-placeholder {
-	height: 400rpx;
+.fault-summary {
 	display: flex;
-	flex-direction: column;
+	justify-content: space-between;
 	align-items: center;
-	justify-content: center;
-	background: linear-gradient(135deg, #f5f7fa 0%, #c3cfe2 100%);
+	padding-bottom: 24rpx;
+	border-bottom: 1rpx solid #f1f5f9;
+	margin-bottom: 24rpx;
 }
 
-.placeholder-text {
-	font-size: 32rpx;
-	color: #666666;
-	margin-bottom: 12rpx;
-}
-
-.placeholder-desc {
+.fault-summary-label {
 	font-size: 26rpx;
-	color: #999999;
+	color: #6b7280;
 }
 
-/* 故障卡片 */
-.fault-card {
-	background-color: #ffffff;
-	border-radius: 16rpx;
-	padding: 30rpx;
-	margin-bottom: 20rpx;
-	box-shadow: 0 2rpx 12rpx rgba(0, 0, 0, 0.08);
-}
-
-.fault-header {
-	margin-bottom: 20rpx;
-	padding-bottom: 20rpx;
-	border-bottom: 1rpx solid #f0f0f0;
-}
-
-.fault-title {
-	font-size: 30rpx;
+.fault-summary-value {
+	font-size: 34rpx;
 	font-weight: 600;
-	color: #f44336;
+	color: #111827;
+}
+
+.fault-summary-value.has-fault {
+	color: #b45309;
 }
 
 .fault-list {
@@ -452,47 +710,80 @@ async function handleSendPosition() {
 }
 
 .fault-item {
-	padding: 20rpx;
-	background-color: #fff3e0;
-	border-radius: 12rpx;
-	border-left: 4rpx solid #ff9800;
+	padding: 22rpx;
+	background-color: #fffbeb;
+	border: 1rpx solid #fde68a;
+	border-radius: 18rpx;
+}
+
+.fault-item-header {
+	display: flex;
+	justify-content: space-between;
+	align-items: center;
+	gap: 20rpx;
+	margin-bottom: 12rpx;
 }
 
 .fault-code {
-	font-size: 24rpx;
-	color: #ff9800;
+	font-size: 26rpx;
+	color: #92400e;
 	font-weight: 600;
-	margin-bottom: 8rpx;
-}
-
-.fault-message {
-	font-size: 28rpx;
-	color: #333333;
-	margin-bottom: 8rpx;
 }
 
 .fault-time {
 	font-size: 24rpx;
-	color: #999999;
+	color: #78716c;
+	text-align: right;
 }
 
-/* 控制卡片 */
-.control-card {
-	background-color: #ffffff;
-	border-radius: 16rpx;
-	padding: 30rpx;
-	margin-bottom: 20rpx;
-	box-shadow: 0 2rpx 12rpx rgba(0, 0, 0, 0.08);
+.fault-message {
+	font-size: 28rpx;
+	color: #1f2937;
+	line-height: 1.5;
+}
+
+.empty-state {
+	padding: 28rpx 16rpx 12rpx;
+	text-align: center;
+}
+
+.empty-state-title {
+	display: block;
+	font-size: 28rpx;
+	color: #4b5563;
+	font-weight: 500;
+}
+
+.empty-state-desc {
+	display: block;
+	margin-top: 10rpx;
+	font-size: 24rpx;
+	color: #9ca3af;
+}
+
+.control-head,
+.send-position-head,
+.map-head {
+	display: flex;
+	justify-content: space-between;
+	align-items: center;
+	gap: 20rpx;
+	margin-bottom: 24rpx;
 }
 
 .control-title {
 	font-size: 30rpx;
 	font-weight: 600;
-	color: #333333;
-	margin-bottom: 24rpx;
+	color: #111827;
 }
 
-/* 方向控制 */
+.control-status,
+.map-subtitle {
+	font-size: 24rpx;
+	color: #6b7280;
+	text-align: right;
+}
+
 .direction-control {
 	display: flex;
 	flex-direction: column;
@@ -508,38 +799,37 @@ async function handleSendPosition() {
 }
 
 .direction-btn {
-	width: 140rpx;
-	height: 80rpx;
-	line-height: 80rpx;
-	background-color: #2196f3;
+	width: 156rpx;
+	height: 84rpx;
+	line-height: 84rpx;
+	background-color: #334155;
 	color: #ffffff;
 	border: none;
-	border-radius: 12rpx;
+	border-radius: 16rpx;
 	font-size: 28rpx;
 	font-weight: 500;
 	padding: 0;
 }
 
 .direction-btn:not([disabled]):active {
-	background-color: #1976d2;
-	transform: scale(0.95);
+	background-color: #1f2937;
+	transform: scale(0.98);
 }
 
 .direction-btn[disabled] {
-	background-color: #e0e0e0;
-	color: #999999;
-	opacity: 0.6;
+	background-color: #e5e7eb;
+	color: #9ca3af;
+	opacity: 1;
 }
 
 .stop-btn {
-	background-color: #f44336;
+	background-color: #475569;
 }
 
 .stop-btn:not([disabled]):active {
-	background-color: #d32f2f;
+	background-color: #334155;
 }
 
-/* 发送点位 */
 .position-input-group {
 	display: flex;
 	flex-direction: column;
@@ -550,11 +840,17 @@ async function handleSendPosition() {
 	display: flex;
 	align-items: center;
 	gap: 16rpx;
+	padding: 20rpx 0;
+	border-bottom: 1rpx solid #f1f5f9;
+}
+
+.input-item:last-of-type {
+	border-bottom: none;
 }
 
 .input-label {
 	font-size: 28rpx;
-	color: #666666;
+	color: #6b7280;
 	min-width: 120rpx;
 }
 
@@ -562,55 +858,75 @@ async function handleSendPosition() {
 	flex: 1;
 	height: 80rpx;
 	padding: 0 20rpx;
-	background-color: #f5f5f5;
-	border-radius: 8rpx;
+	background-color: #f8fafc;
+	border: 1rpx solid #e5e7eb;
+	border-radius: 14rpx;
 	font-size: 28rpx;
-	color: #333333;
+	color: #111827;
 }
 
 .input-field[disabled] {
-	background-color: #e0e0e0;
-	color: #999999;
+	background-color: #f3f4f6;
+	color: #9ca3af;
 }
 
 .send-btn {
 	height: 80rpx;
 	line-height: 80rpx;
-	background-color: #4caf50;
+	background-color: #334155;
 	color: #ffffff;
 	border: none;
-	border-radius: 12rpx;
+	border-radius: 16rpx;
 	font-size: 30rpx;
 	font-weight: 500;
-	margin-top: 10rpx;
+	margin-top: 12rpx;
 }
 
 .send-btn:not([disabled]):active {
-	background-color: #388e3c;
+	background-color: #1f2937;
 	transform: scale(0.98);
 }
 
 .send-btn[disabled] {
-	background-color: #e0e0e0;
-	color: #999999;
-	opacity: 0.6;
+	background-color: #e5e7eb;
+	color: #9ca3af;
+	opacity: 1;
 }
 
-/* 地图占位 */
 .map-card {
-	background-color: #ffffff;
-	border-radius: 16rpx;
-	margin-bottom: 20rpx;
-	box-shadow: 0 2rpx 12rpx rgba(0, 0, 0, 0.08);
-	overflow: hidden;
+	padding: 28rpx;
+}
+
+.map-title {
+	font-size: 30rpx;
+	font-weight: 600;
+	color: #111827;
 }
 
 .map-placeholder {
-	height: 500rpx;
+	height: 420rpx;
+	border-radius: 20rpx;
+	border: 1rpx dashed #cbd5e1;
+	background-color: #f8fafc;
 	display: flex;
 	flex-direction: column;
 	align-items: center;
 	justify-content: center;
-	background: linear-gradient(135deg, #e0f2f1 0%, #b2dfdb 100%);
+	padding: 24rpx;
+	box-sizing: border-box;
+	text-align: center;
+}
+
+.map-placeholder-title {
+	font-size: 30rpx;
+	color: #374151;
+	font-weight: 500;
+}
+
+.map-placeholder-desc {
+	margin-top: 14rpx;
+	font-size: 26rpx;
+	color: #6b7280;
+	line-height: 1.5;
 }
 </style>
